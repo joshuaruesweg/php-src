@@ -1271,6 +1271,9 @@ expr:
 			name->attr = ZEND_NAME_FQ;
 			$$ = zend_ast_create(ZEND_AST_CALL, name, zend_ast_create_list(1, ZEND_AST_ARG_LIST, $2));
 		}
+	|	T_CONST variable '=' expr
+			{ $$ = zend_ast_create(ZEND_AST_ASSIGN_CONST, $2, $4); }
+	|	T_CLONE expr { $$ = zend_ast_create(ZEND_AST_CLONE, $2); }
 	|	variable T_PLUS_EQUAL expr
 			{ $$ = zend_ast_create_assign_op(ZEND_ADD, $1, $3); }
 	|	variable T_MINUS_EQUAL expr
