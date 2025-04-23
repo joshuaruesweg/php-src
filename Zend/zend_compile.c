@@ -2970,6 +2970,23 @@ static bool is_globals_fetch(const zend_ast *ast)
 	return 0;
 }
 
+static bool is_defined_const_variable(const zend_ast *ast)
+{
+	if (ast->kind == ZEND_AST_VAR && ast->child[0]->kind == ZEND_AST_ZVAL) {
+		zval *zv = zend_ast_get_zval(ast->child[0]);
+		zend_string *name = Z_STR_P(zv);
+
+		int var_num = lookup_cv(name);
+
+		zend_op_array *op_array;
+		op_array = CG(active_op_array);
+
+		return op_array->vars[EX_VAR_TO_NUM(var_num)]->gc.u.type_info & GC_CONST_VAR;
+	}
+
+	return 0;
+}
+
 static bool is_global_var_fetch(zend_ast *ast)
 {
 	return ast->kind == ZEND_AST_DIM && is_globals_fetch(ast->child[0]);
@@ -3403,6 +3420,10 @@ static void zend_ensure_writable_variable(const zend_ast *ast) /* {{{ */
 		zend_error_noreturn(E_COMPILE_ERROR,
 			"$GLOBALS can only be modified using the $GLOBALS[$name] = $value syntax");
 	}
+	if (is_defined_const_variable(ast)) {
+		zend_error_noreturn(E_COMPILE_ERROR,
+			"Cannot reassign final variable.");
+	}
 }
 /* }}} */
 
@@ -3542,6 +3563,29 @@ static void zend_compile_assign(znode *result, zend_ast *ast) /* {{{ */
 			return;
 		EMPTY_SWITCH_DEFAULT_CASE();
 	}
+}
+
+static void zend_compile_assign_const(znode *result, zend_ast *ast)
+{
+	zend_ast *var_ast = ast->child[0];
+
+	// 1. Compile-time Namen extrahieren
+	if (var_ast->kind != ZEND_AST_VAR || var_ast->child[0]->kind != ZEND_AST_ZVAL) {
+		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be variable for const assignment");
+	}
+	zval *zv = zend_ast_get_zval(var_ast->child[0]);
+	zend_string *name = Z_STR_P(zv);
+
+	zend_compile_assign(result, ast);
+
+	int var_num = lookup_cv(name);
+
+	zend_op_array *op_array;
+	op_array = CG(active_op_array);
+
+	op_array->vars[EX_VAR_TO_NUM(var_num)]->gc.u.type_info |= GC_CONST_VAR;
+
+	CG(active_op_array) = op_array;
 }
 /* }}} */
 
@@ -11901,6 +11945,9 @@ static void zend_compile_expr_inner(znode *result, zend_ast *ast) /* {{{ */
 			return;
 		case ZEND_AST_ASSIGN:
 			zend_compile_assign(result, ast);
+			return;
+		case ZEND_AST_ASSIGN_CONST:
+			zend_compile_assign_const(result, ast);
 			return;
 		case ZEND_AST_ASSIGN_REF:
 			zend_compile_assign_ref(result, ast);
