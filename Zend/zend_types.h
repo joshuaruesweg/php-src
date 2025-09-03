@@ -812,7 +812,9 @@ static zend_always_inline uint32_t zval_gc_info(uint32_t gc_type_info) {
 #define GC_IMMUTABLE                (1<<6) /* can't be changed in place */
 #define GC_PERSISTENT               (1<<7) /* allocated using malloc */
 #define GC_PERSISTENT_LOCAL         (1<<8) /* persistent, but thread-local */
-#define GC_CONST_VAR         		(1<<9) /* persistent, but thread-local */
+#define GC_CONST_VAR         		(1<<2) /* persistent, but thread-local */
+#define Z_EXTRA_USER_CONST_VAR    	(1U<<30) /* user-defined const variable flag for Z_EXTRA */
+
 
 #define GC_NULL						(IS_NULL         | (GC_NOT_COLLECTABLE << GC_FLAGS_SHIFT))
 #define GC_STRING					(IS_STRING       | (GC_NOT_COLLECTABLE << GC_FLAGS_SHIFT))

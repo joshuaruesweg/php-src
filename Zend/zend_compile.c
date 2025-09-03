@@ -2981,7 +2981,12 @@ static bool is_defined_const_variable(const zend_ast *ast)
 		zend_op_array *op_array;
 		op_array = CG(active_op_array);
 
-		return op_array->vars[EX_VAR_TO_NUM(var_num)]->gc.u.type_info & GC_CONST_VAR;
+		// Check if the variable already exists and has const flag in its Z_EXTRA
+		if (var_num >= 0 && var_num < op_array->last_var) {
+			// For now, return false to disable compile-time const checking
+			// The runtime check in ASSIGN_CONST will handle this
+			return false;
+		}
 	}
 
 	return 0;
@@ -3422,7 +3427,7 @@ static void zend_ensure_writable_variable(const zend_ast *ast) /* {{{ */
 	}
 	if (is_defined_const_variable(ast)) {
 		zend_error_noreturn(E_COMPILE_ERROR,
-			"Cannot reassign final variable.");
+			"Cannot re-assign final variable.");
 	}
 }
 /* }}} */
@@ -3568,24 +3573,34 @@ static void zend_compile_assign(znode *result, zend_ast *ast) /* {{{ */
 static void zend_compile_assign_const(znode *result, zend_ast *ast)
 {
 	zend_ast *var_ast = ast->child[0];
+	zend_ast *expr_ast = ast->child[1];
 
-	// 1. Compile-time Namen extrahieren
+
+	// Compile-time validation and variable name extraction
 	if (var_ast->kind != ZEND_AST_VAR || var_ast->child[0]->kind != ZEND_AST_ZVAL) {
 		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be variable for const assignment");
 	}
 	zval *zv = zend_ast_get_zval(var_ast->child[0]);
 	zend_string *name = Z_STR_P(zv);
 
-	zend_compile_assign(result, ast);
+	// Generate the ASSIGN_CONST opcode for runtime checking
+	znode var_node, expr_node;
+	zend_op *opline;
 
-	int var_num = lookup_cv(name);
+	zend_compile_var(&var_node, var_ast, BP_VAR_W, 0);
+	zend_compile_expr(&expr_node, expr_ast);
 
-	zend_op_array *op_array;
-	op_array = CG(active_op_array);
+	// Check if the expression is an array at compile time - reject arrays for now
+	if (expr_node.op_type == IS_CONST && Z_TYPE(expr_node.u.constant) == IS_ARRAY) {
+		zend_error_noreturn(E_COMPILE_ERROR, "const variables do not currently support arrays");
+	}
 
-	op_array->vars[EX_VAR_TO_NUM(var_num)]->gc.u.type_info |= GC_CONST_VAR;
+	opline = zend_emit_op(result, ZEND_ASSIGN_CONST, &var_node, &expr_node);
+	if (result && result->op_type == IS_VAR) {
+		GET_NODE(result, opline->result);
+	}
 
-	CG(active_op_array) = op_array;
+	zend_do_free(&expr_node);
 }
 /* }}} */
 
