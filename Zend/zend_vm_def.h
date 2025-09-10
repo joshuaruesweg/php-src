@@ -23,6 +23,7 @@
  * php zend_vm_gen.php
  */
 
+
 ZEND_VM_HELPER(zend_add_helper, ANY, ANY, zval *op_1, zval *op_2)
 {
 	USE_OPLINE
@@ -1267,13 +1268,8 @@ ZEND_VM_HANDLER(26, ZEND_ASSIGN_OP, VAR|CV, CONST|TMPVAR|CV, OP)
 	/* Check if this is a const variable (only for compiled variables CV) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
 		Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL) {
-		bool is_const_var = false;
-		
-		if (!Z_REFCOUNTED_P(var_ptr)) {
-			/* For non-refcounted types, check Z_EXTRA */
-			is_const_var = (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR);
-		}
-		
+		bool is_const_var = (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR);
+
 		if (is_const_var) {
 			zend_throw_error(NULL, "Cannot re-assign final variable.");
 			HANDLE_EXCEPTION();
@@ -1549,8 +1545,7 @@ ZEND_VM_HOT_HANDLER(34, ZEND_PRE_INC, VAR|CV, ANY, SPEC(RETVAL))
 
 	/* Check if this is a const variable (only for compiled variables CV) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(var_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -1610,8 +1605,7 @@ ZEND_VM_HOT_HANDLER(35, ZEND_PRE_DEC, VAR|CV, ANY, SPEC(RETVAL))
 
 	/* Check if this is a const variable (only for compiled variables CV) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(var_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -1669,8 +1663,7 @@ ZEND_VM_HOT_HANDLER(36, ZEND_POST_INC, VAR|CV, ANY)
 
 	/* Check if this is a const variable (only for compiled variables CV) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(var_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -1726,8 +1719,7 @@ ZEND_VM_HOT_HANDLER(37, ZEND_POST_DEC, VAR|CV, ANY)
 
 	/* Check if this is a const variable (only for compiled variables CV) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(var_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -2718,8 +2710,7 @@ ZEND_VM_HANDLER(23, ZEND_ASSIGN_DIM, VAR|CV, CONST|TMPVAR|UNUSED|NEXT|CV, SPEC(O
 
 	/* Check if this is a const variable (only for compiled variables CV, non-refcounted types) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(object_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -2878,8 +2869,7 @@ ZEND_VM_HANDLER(22, ZEND_ASSIGN, VAR|CV, CONST|TMP|VAR|CV, SPEC(RETVAL))
 
 	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
 	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(variable_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -2915,8 +2905,7 @@ ZEND_VM_HANDLER(210, ZEND_ASSIGN_CONST, VAR|CV, CONST|TMP|VAR|CV, SPEC(RETVAL))
 	variable_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_W);
 
 	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL && 
-	    !Z_REFCOUNTED_P(variable_ptr) &&  /* Only check non-refcounted types to avoid conflicts */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
@@ -2936,12 +2925,7 @@ ZEND_VM_HANDLER(210, ZEND_ASSIGN_CONST, VAR|CV, CONST|TMP|VAR|CV, SPEC(RETVAL))
 		value = zend_assign_to_variable(variable_ptr, value, OP2_TYPE, EX_USES_STRICT_TYPES());
 	}
 
-	/* Mark variable as const after successful assignment (only for non-refcounted types) */
-	if (!Z_REFCOUNTED_P(variable_ptr)) {  
-		/* For non-refcounted types, mark the value directly */
-		Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-	}
-	/* Note: Refcounted types (arrays, objects) are not supported for const variables */
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
 	FREE_OP1();
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
