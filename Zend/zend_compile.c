@@ -3629,10 +3629,8 @@ static void zend_compile_assign_const(znode *result, zend_ast *ast)
 
 	// Compile-time validation and variable name extraction
 	if (var_ast->kind != ZEND_AST_VAR || var_ast->child[0]->kind != ZEND_AST_ZVAL) {
-		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be variable for const assignment");
+		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be a variable for const assignment");
 	}
-	zval *zv = zend_ast_get_zval(var_ast->child[0]);
-	zend_string *name = Z_STR_P(zv);
 
 	// Generate the ASSIGN_CONST opcode for runtime checking
 	znode var_node, expr_node;
@@ -3641,17 +3639,10 @@ static void zend_compile_assign_const(znode *result, zend_ast *ast)
 	zend_compile_var(&var_node, var_ast, BP_VAR_W, 0);
 	zend_compile_expr(&expr_node, expr_ast);
 
-	// Check if the expression is an array at compile time - reject arrays for now
-	if (expr_node.op_type == IS_CONST && Z_TYPE(expr_node.u.constant) == IS_ARRAY) {
-		zend_error_noreturn(E_COMPILE_ERROR, "const variables do not currently support arrays");
-	}
-
 	opline = zend_emit_op(result, ZEND_ASSIGN_CONST, &var_node, &expr_node);
 	if (result && result->op_type == IS_VAR) {
 		GET_NODE(result, opline->result);
 	}
-
-	zend_do_free(&expr_node);
 }
 /* }}} */
 
