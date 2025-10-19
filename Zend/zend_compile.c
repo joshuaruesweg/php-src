@@ -3016,11 +3016,9 @@ static bool is_defined_const_variable(const zend_ast *ast)
 		zend_op_array *op_array;
 		op_array = CG(active_op_array);
 
-		// Check if the variable already exists and has const flag in its Z_EXTRA
+		// Check if the variable already exists and has const flag in its compile-time info
 		if (var_num >= 0 && var_num < op_array->last_var) {
-			// For now, return false to disable compile-time const checking
-			// The runtime check in ASSIGN_CONST will handle this
-			return false;
+			return op_array->vars[EX_VAR_TO_NUM(var_num)]->gc.u.type_info & GC_CONST_VAR;
 		}
 	}
 

@@ -2826,9 +2826,6 @@ num_undef:
 				}
 		} else {
 			ZEND_HASH_INDEX_LOOKUP(ht, hval, retval);
-			if (retval && Z_TYPE_P(retval) == IS_UNDEF) {
-				Z_EXTRA_P(retval) = 0;  /* Initialize Z_EXTRA for new array elements */
-			}
 		}
 	} else if (EXPECTED(Z_TYPE_P(dim) == IS_STRING)) {
 		offset_key = Z_STR_P(dim);

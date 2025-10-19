@@ -6755,11 +6755,13 @@ ZEND_VM_HANDLER(153, ZEND_UNSET_CV, CV, UNUSED)
 		zend_refcounted *garbage = Z_COUNTED_P(var);
 
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 		SAVE_OPLINE();
 		GC_DTOR(garbage);
 		ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 	} else {
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 	}
 	ZEND_VM_NEXT_OPCODE();
 }
@@ -8852,6 +8854,17 @@ ZEND_VM_C_LABEL(check_indirect):
 				ZVAL_NULL(value);
 			}
 		}
+
+	    if (
+	        Z_TYPE_P(value) != IS_NULL
+	        && Z_TYPE_P(value) != IS_REFERENCE
+	        &&(Z_EXTRA_P(value) & Z_EXTRA_USER_CONST_VAR)
+	    ) {
+	        SAVE_OPLINE();
+	        zend_throw_error(NULL, "Cannot use global with const variable \"%s\"",
+                 ZSTR_VAL(varname));
+	        HANDLE_EXCEPTION();
+        }
 	}
 
 	if (UNEXPECTED(!Z_ISREF_P(value))) {
