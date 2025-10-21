@@ -2974,8 +2974,13 @@ static bool is_defined_const_variable(const zend_ast *ast)
 {
 	if (ast->kind == ZEND_AST_VAR && ast->child[0]->kind == ZEND_AST_ZVAL) {
 		zval *zv = zend_ast_get_zval(ast->child[0]);
-		zend_string *name = Z_STR_P(zv);
 
+		/* Ensure the variable name is actually a string; otherwise `lookup_cv` fails */
+		if (Z_TYPE_P(zv) != IS_STRING) {
+			return 0;
+		}
+
+		zend_string *name = Z_STR_P(zv);
 		int var_num = lookup_cv(name);
 
 		zend_op_array *op_array;
