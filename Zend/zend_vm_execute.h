@@ -26094,6 +26094,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -26131,6 +26141,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -30904,6 +30925,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -30941,6 +30972,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -31007,6 +31049,17 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -45661,6 +45714,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -45699,6 +45762,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -51717,6 +51791,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -51755,6 +51839,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -51822,6 +51917,17 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
