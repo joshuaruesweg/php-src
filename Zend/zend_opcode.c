@@ -58,6 +58,7 @@ void init_op_array(zend_op_array *op_array, zend_function_type type, int initial
 	op_array->opcodes = emalloc(initial_ops_size * sizeof(zend_op));
 
 	op_array->last_var = 0;
+	op_array->const_var_flags = 0;
 	op_array->vars = NULL;
 
 	op_array->T = 0;

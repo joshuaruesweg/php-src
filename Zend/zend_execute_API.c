@@ -1855,19 +1855,20 @@ ZEND_API void zend_attach_symbol_table(zend_execute_data *execute_data) /* {{{ *
 		do {
 			zval *zv = zend_hash_find_known_hash(ht, *str);
 
-			if (zv) {
-				if (Z_TYPE_P(zv) == IS_INDIRECT) {
-					const zval *val = Z_INDIRECT_P(zv);
+		if (zv) {
+			if (Z_TYPE_P(zv) == IS_INDIRECT) {
+				const zval *val = Z_INDIRECT_P(zv);
 
-					ZVAL_COPY_VALUE(var, val);
-				} else {
-					ZVAL_COPY_VALUE(var, zv);
-				}
+				ZVAL_COPY_VALUE(var, val);
 			} else {
-				ZVAL_UNDEF(var);
-				zv = zend_hash_add_new(ht, *str, var);
+				ZVAL_COPY_VALUE(var, zv);
 			}
-			ZVAL_INDIRECT(zv, var);
+		} else {
+			ZVAL_UNDEF(var);
+			zv = zend_hash_add_new(ht, *str, var);
+		}
+		Z_EXTRA_P(var) = 0;
+		ZVAL_INDIRECT(zv, var);
 			str++;
 			var++;
 		} while (str != end);

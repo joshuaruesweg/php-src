@@ -6,7 +6,7 @@ Test compound assignment operators on const variables.
 const $const = 10;
 
 function test(&$var) {
-    $var = 123;
+    echo $var;
 }
 
 test($const);

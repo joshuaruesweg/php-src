@@ -11,4 +11,4 @@ class Obj
 const return = 'nope';
 ?>
 --EXPECTF--
-Parse error: syntax error, unexpected token "return", expecting identifier in %s on line %d
+Parse error: syntax error, unexpected token "return" in %s on line %d

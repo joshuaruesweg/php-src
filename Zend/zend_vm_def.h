@@ -1266,14 +1266,11 @@ ZEND_VM_HANDLER(26, ZEND_ASSIGN_OP, VAR|CV, CONST|TMP|CV, OP)
 	var_ptr = GET_OP1_ZVAL_PTR_PTR(BP_VAR_RW);
 
 	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
-		Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL) {
-		bool is_const_var = (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR);
-
-		if (is_const_var) {
-			zend_throw_error(NULL, "Cannot re-assign final variable.");
-			HANDLE_EXCEPTION();
-		}
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
 	}
 
 	do {
@@ -1546,9 +1543,10 @@ ZEND_VM_HOT_HANDLER(34, ZEND_PRE_INC, VAR|CV, ANY, SPEC(RETVAL))
 	var_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_RW);
 
 	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
+	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
 	}
@@ -1606,9 +1604,10 @@ ZEND_VM_HOT_HANDLER(35, ZEND_PRE_DEC, VAR|CV, ANY, SPEC(RETVAL))
 	var_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_RW);
 
 	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
+	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
 	}
@@ -1664,9 +1663,10 @@ ZEND_VM_HOT_HANDLER(36, ZEND_POST_INC, VAR|CV, ANY)
 	var_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_RW);
 
 	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
+	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
 	}
@@ -1720,9 +1720,10 @@ ZEND_VM_HOT_HANDLER(37, ZEND_POST_DEC, VAR|CV, ANY)
 	var_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_RW);
 
 	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
+	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		HANDLE_EXCEPTION();
 	}
@@ -1829,6 +1830,21 @@ ZEND_VM_C_LABEL(fetch_this):
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+				FREE_OP1();
+			}
+			if (OP1_TYPE != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				ZEND_VM_C_GOTO(fetch_this);
@@ -2734,8 +2750,8 @@ ZEND_VM_HANDLER(23, ZEND_ASSIGN_DIM, VAR|CV, CONST|TMP|UNUSED|NEXT|CV, SPEC(OP_D
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_W);
 
-	/* Check if this is a const variable (only for compiled variables CV, non-refcounted types) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
@@ -2894,7 +2910,7 @@ ZEND_VM_HANDLER(22, ZEND_ASSIGN, VAR|CV, CONST|TMP|CV, SPEC(RETVAL))
 	variable_ptr = GET_OP1_ZVAL_PTR_PTR_UNDEF(BP_VAR_W);
 
 	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&  /* Only check compiled variables to avoid false positives */
+	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
@@ -8874,18 +8890,18 @@ ZEND_VM_C_LABEL(check_indirect):
 			if (UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
 				ZVAL_NULL(value);
 			}
-		}
 
-	    if (
-	        Z_TYPE_P(value) != IS_NULL
-	        && Z_TYPE_P(value) != IS_REFERENCE
-	        &&(Z_EXTRA_P(value) & Z_EXTRA_USER_CONST_VAR)
-	    ) {
-	        SAVE_OPLINE();
-	        zend_throw_error(NULL, "Cannot use global with const variable \"%s\"",
-                 ZSTR_VAL(varname));
-	        HANDLE_EXCEPTION();
-        }
+			/* After resolving INDIRECT, value points to a CV slot where Z_EXTRA is reliable.
+			 * Check if the global variable is a const variable. */
+			if (Z_TYPE_P(value) != IS_NULL
+			    && Z_TYPE_P(value) != IS_REFERENCE
+			    && (Z_EXTRA_P(value) & Z_EXTRA_USER_CONST_VAR)) {
+				SAVE_OPLINE();
+				zend_throw_error(NULL, "Cannot use global with const variable \"%s\"",
+					ZSTR_VAL(varname));
+				HANDLE_EXCEPTION();
+			}
+		}
 	}
 
 	if (UNEXPECTED(!Z_ISREF_P(value))) {

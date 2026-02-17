@@ -4407,6 +4407,7 @@ static zend_always_inline void zend_init_cvs(uint32_t first, uint32_t last EXECU
 
 		do {
 			ZVAL_UNDEF(var);
+			Z_EXTRA_P(var) = 0;
 			var++;
 		} while (--count);
 	}
@@ -4439,6 +4440,14 @@ static zend_always_inline void i_init_func_execute_data(zend_op_array *op_array,
 #else
 		EX(opline) += num_args;
 #endif
+	}
+
+	/* Clear u2.extra for argument CVs to prevent stale const flags from uninitialized memory */
+	{
+		uint32_t args_to_clear = MIN(num_args, op_array->last_var);
+		for (uint32_t i = 0; i < args_to_clear; i++) {
+			Z_EXTRA_P(EX_VAR_NUM(i)) = 0;
+		}
 	}
 
 	/* Initialize CV variables (skip arguments) */

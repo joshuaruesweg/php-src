@@ -9,4 +9,4 @@ var_dump(exit);
 
 ?>
 --EXPECTF--
-Parse error: syntax error, unexpected token "exit", expecting identifier in %s on line %d
+Parse error: syntax error, unexpected token "exit" in %s on line %d
