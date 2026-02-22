@@ -189,13 +189,13 @@ static inline bool may_have_side_effects(
 			return true;
 		case ZEND_ASSIGN_REF:
 			return true;
-		case ZEND_ASSIGN_CONST:
+		case ZEND_ASSIGN_READONLY:
 			return true;
 		case ZEND_ASSIGN:
 		{
 			if (opline->op1_type == IS_CV
-			 && op_array->const_var_flags
-			 && zend_bitset_in(op_array->const_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+			 && op_array->readonly_var_flags
+			 && zend_bitset_in(op_array->readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
 				return true;
 			}
 			if (is_bad_mod(ssa, ssa_op->op1_use, ssa_op->op1_def)) {
@@ -368,7 +368,7 @@ static bool try_remove_var_def(const context *ctx, int free_var, int use_chain, 
 			zend_op *def_opline = &ctx->op_array->opcodes[def];
 
 			switch (def_opline->opcode) {
-				case ZEND_ASSIGN_CONST:
+				case ZEND_ASSIGN_READONLY:
 				case ZEND_ASSIGN:
 				case ZEND_ASSIGN_REF:
 				case ZEND_ASSIGN_DIM:

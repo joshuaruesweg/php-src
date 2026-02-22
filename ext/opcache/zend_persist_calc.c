@@ -334,7 +334,7 @@ static void zend_persist_op_array_calc_ex(zend_op_array *op_array)
 		}
 	}
 
-	if (op_array->const_var_flags) {
+	if (op_array->readonly_var_flags) {
 		ADD_SIZE(zend_bitset_len(op_array->last_var) * ZEND_BITSET_ELM_SIZE);
 	}
 

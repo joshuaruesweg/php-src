@@ -1456,8 +1456,8 @@ void zend_dfa_optimize_op_array(zend_op_array *op_array, zend_optimizer_ctx *ctx
 			 && ssa->ops[op_1].op1_def == v
 			 && !RETURN_VALUE_USED(opline)
 			 && !(opline->op1_type == IS_CV
-			   && op_array->const_var_flags
-			   && zend_bitset_in(op_array->const_var_flags, EX_VAR_TO_NUM(opline->op1.var)))
+			   && op_array->readonly_var_flags
+			   && zend_bitset_in(op_array->readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)))
 			) {
 				int orig_var = ssa->ops[op_1].op1_use;
 

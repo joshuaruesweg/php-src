@@ -58,7 +58,7 @@ void init_op_array(zend_op_array *op_array, zend_function_type type, int initial
 	op_array->opcodes = emalloc(initial_ops_size * sizeof(zend_op));
 
 	op_array->last_var = 0;
-	op_array->const_var_flags = NULL;
+	op_array->readonly_var_flags = NULL;
 	op_array->vars = NULL;
 
 	op_array->T = 0;
@@ -590,8 +590,8 @@ ZEND_API void destroy_op_array(zend_op_array *op_array)
 		efree(op_array->vars);
 	}
 
-	if (op_array->const_var_flags) {
-		efree(op_array->const_var_flags);
+	if (op_array->readonly_var_flags) {
+		efree(op_array->readonly_var_flags);
 	}
 
 	/* ZEND_ACC_PTR_OPS and ZEND_ACC_OVERRIDE use the same value */

@@ -490,9 +490,9 @@ static void zend_persist_op_array_ex(zend_op_array *op_array, zend_persistent_sc
 				op_array->vars = zend_shared_alloc_get_xlat_entry(op_array->vars);
 				ZEND_ASSERT(op_array->vars != NULL);
 			}
-			if (op_array->const_var_flags) {
-				op_array->const_var_flags = zend_shared_alloc_get_xlat_entry(op_array->const_var_flags);
-				ZEND_ASSERT(op_array->const_var_flags != NULL);
+			if (op_array->readonly_var_flags) {
+				op_array->readonly_var_flags = zend_shared_alloc_get_xlat_entry(op_array->readonly_var_flags);
+				ZEND_ASSERT(op_array->readonly_var_flags != NULL);
 			}
 			if (op_array->dynamic_func_defs) {
 				op_array->dynamic_func_defs = zend_shared_alloc_get_xlat_entry(op_array->dynamic_func_defs);
@@ -692,9 +692,9 @@ static void zend_persist_op_array_ex(zend_op_array *op_array, zend_persistent_sc
 		}
 	}
 
-	if (op_array->const_var_flags) {
-		op_array->const_var_flags = zend_shared_memdup_put_free(
-			op_array->const_var_flags,
+	if (op_array->readonly_var_flags) {
+		op_array->readonly_var_flags = zend_shared_memdup_put_free(
+			op_array->readonly_var_flags,
 			zend_bitset_len(op_array->last_var) * ZEND_BITSET_ELM_SIZE);
 	}
 

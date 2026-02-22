@@ -235,7 +235,7 @@ static const char *zend_vm_opcodes_names[213] = {
 	"ZEND_INIT_PARENT_PROPERTY_HOOK_CALL",
 	"ZEND_DECLARE_ATTRIBUTED_CONST",
 	"ZEND_TYPE_ASSERT",
-	"ZEND_ASSIGN_CONST",
+	"ZEND_ASSIGN_READONLY",
 };
 
 static uint32_t zend_vm_opcodes_flags[213] = {
