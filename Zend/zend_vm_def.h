@@ -5246,6 +5246,7 @@ ZEND_VM_HANDLER(67, ZEND_SEND_REF, VAR|CV, CONST|UNUSED|NUM)
 	if ((opline->op1_type == IS_CV) &&
 	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
 	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		ZVAL_UNDEF(arg);
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 		FREE_OP1();
 		HANDLE_EXCEPTION();
@@ -5293,6 +5294,7 @@ ZEND_VM_C_LABEL(send_var_by_ref):
 		if ((opline->op1_type == IS_CV) &&
 		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
 		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			ZVAL_UNDEF(arg);
 			SAVE_OPLINE();
 			zend_throw_error(NULL, "Cannot re-assign final variable.");
 			FREE_OP1();
