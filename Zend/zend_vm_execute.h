@@ -10911,6 +10911,7 @@ fetch_this:
 		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
 			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
 
+
 			}
 			if (IS_CONST != IS_CONST) {
 				zend_tmp_string_release(tmp_name);
@@ -16442,695 +16443,6 @@ fetch_obj_is_finish:
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FAST_CONCAT_SPEC_TMPVAR_TMPVAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	zend_string *op1_str, *op2_str, *str;
-
-
-	op1 = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	if (((IS_TMP_VAR|IS_VAR) == IS_CONST || EXPECTED(Z_TYPE_P(op1) == IS_STRING)) &&
-	    ((IS_TMP_VAR|IS_VAR) == IS_CONST || EXPECTED(Z_TYPE_P(op2) == IS_STRING))) {
-		zend_string *op1_str = Z_STR_P(op1);
-		zend_string *op2_str = Z_STR_P(op2);
-		zend_string *str;
-		uint32_t flags = ZSTR_GET_COPYABLE_CONCAT_PROPERTIES_BOTH(op1_str, op2_str);
-
-		if ((IS_TMP_VAR|IS_VAR) != IS_CONST && UNEXPECTED(ZSTR_LEN(op1_str) == 0)) {
-			if ((IS_TMP_VAR|IS_VAR) == IS_CONST || (IS_TMP_VAR|IS_VAR) == IS_CV) {
-				ZVAL_STR_COPY(EX_VAR(opline->result.var), op2_str);
-			} else {
-				ZVAL_STR(EX_VAR(opline->result.var), op2_str);
-			}
-			if ((IS_TMP_VAR|IS_VAR) & (IS_TMP_VAR|IS_VAR)) {
-				zend_string_release_ex(op1_str, 0);
-			}
-		} else if ((IS_TMP_VAR|IS_VAR) != IS_CONST && UNEXPECTED(ZSTR_LEN(op2_str) == 0)) {
-			if ((IS_TMP_VAR|IS_VAR) == IS_CONST || (IS_TMP_VAR|IS_VAR) == IS_CV) {
-				ZVAL_STR_COPY(EX_VAR(opline->result.var), op1_str);
-			} else {
-				ZVAL_STR(EX_VAR(opline->result.var), op1_str);
-			}
-			if ((IS_TMP_VAR|IS_VAR) & (IS_TMP_VAR|IS_VAR)) {
-				zend_string_release_ex(op2_str, 0);
-			}
-		} else if ((IS_TMP_VAR|IS_VAR) != IS_CONST && (IS_TMP_VAR|IS_VAR) != IS_CV &&
-		    !ZSTR_IS_INTERNED(op1_str) && GC_REFCOUNT(op1_str) == 1) {
-			size_t len = ZSTR_LEN(op1_str);
-
-			str = zend_string_extend(op1_str, len + ZSTR_LEN(op2_str), 0);
-			memcpy(ZSTR_VAL(str) + len, ZSTR_VAL(op2_str), ZSTR_LEN(op2_str)+1);
-			GC_ADD_FLAGS(str, flags);
-			ZVAL_NEW_STR(EX_VAR(opline->result.var), str);
-			if ((IS_TMP_VAR|IS_VAR) & (IS_TMP_VAR|IS_VAR)) {
-				zend_string_release_ex(op2_str, 0);
-			}
-		} else {
-			str = zend_string_alloc(ZSTR_LEN(op1_str) + ZSTR_LEN(op2_str), 0);
-			memcpy(ZSTR_VAL(str), ZSTR_VAL(op1_str), ZSTR_LEN(op1_str));
-			memcpy(ZSTR_VAL(str) + ZSTR_LEN(op1_str), ZSTR_VAL(op2_str), ZSTR_LEN(op2_str)+1);
-			GC_ADD_FLAGS(str, flags);
-			ZVAL_NEW_STR(EX_VAR(opline->result.var), str);
-			if ((IS_TMP_VAR|IS_VAR) & (IS_TMP_VAR|IS_VAR)) {
-				zend_string_release_ex(op1_str, 0);
-			}
-			if ((IS_TMP_VAR|IS_VAR) & (IS_TMP_VAR|IS_VAR)) {
-				zend_string_release_ex(op2_str, 0);
-			}
-		}
-		ZEND_VM_NEXT_OPCODE();
-	}
-
-	SAVE_OPLINE();
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-		op1_str = Z_STR_P(op1);
-	} else if (EXPECTED(Z_TYPE_P(op1) == IS_STRING)) {
-		op1_str = zend_string_copy(Z_STR_P(op1));
-	} else {
-		if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_TYPE_P(op1) == IS_UNDEF)) {
-			ZVAL_UNDEFINED_OP1();
-		}
-		op1_str = zval_get_string_func(op1);
-	}
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-		op2_str = Z_STR_P(op2);
-	} else if (EXPECTED(Z_TYPE_P(op2) == IS_STRING)) {
-		op2_str = zend_string_copy(Z_STR_P(op2));
-	} else {
-		if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_TYPE_P(op2) == IS_UNDEF)) {
-			ZVAL_UNDEFINED_OP2();
-		}
-		op2_str = zval_get_string_func(op2);
-	}
-	do {
-		if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-			if (UNEXPECTED(ZSTR_LEN(op1_str) == 0)) {
-				if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-					if (UNEXPECTED(Z_REFCOUNTED_P(op2))) {
-						GC_ADDREF(op2_str);
-					}
-				}
-				ZVAL_STR(EX_VAR(opline->result.var), op2_str);
-				zend_string_release_ex(op1_str, 0);
-				break;
-			}
-		}
-		if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-			if (UNEXPECTED(ZSTR_LEN(op2_str) == 0)) {
-				if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-					if (UNEXPECTED(Z_REFCOUNTED_P(op1))) {
-						GC_ADDREF(op1_str);
-					}
-				}
-				ZVAL_STR(EX_VAR(opline->result.var), op1_str);
-				zend_string_release_ex(op2_str, 0);
-				break;
-			}
-		}
-		str = zend_string_alloc(ZSTR_LEN(op1_str) + ZSTR_LEN(op2_str), 0);
-		memcpy(ZSTR_VAL(str), ZSTR_VAL(op1_str), ZSTR_LEN(op1_str));
-		memcpy(ZSTR_VAL(str) + ZSTR_LEN(op1_str), ZSTR_VAL(op2_str), ZSTR_LEN(op2_str)+1);
-
-		ZSTR_COPY_CONCAT_PROPERTIES_BOTH(str, op1_str, op2_str);
-		ZVAL_NEW_STR(EX_VAR(opline->result.var), str);
-		if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-			zend_string_release_ex(op1_str, 0);
-		}
-		if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-			zend_string_release_ex(op2_str, 0);
-		}
-	} while (0);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_INIT_METHOD_CALL_SPEC_TMPVAR_TMPVAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *function_name;
-	zval *object;
-	zend_function *fbc;
-	zend_class_entry *called_scope;
-	zend_object *obj;
-	zend_execute_data *call;
-	uint32_t call_info;
-
-	SAVE_OPLINE();
-
-	object = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-		function_name = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	}
-
-	if ((IS_TMP_VAR|IS_VAR) != IS_CONST &&
-	    UNEXPECTED(Z_TYPE_P(function_name) != IS_STRING)) {
-		do {
-			if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && Z_ISREF_P(function_name)) {
-				function_name = Z_REFVAL_P(function_name);
-				if (EXPECTED(Z_TYPE_P(function_name) == IS_STRING)) {
-					break;
-				}
-			} else if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_TYPE_P(function_name) == IS_UNDEF)) {
-				ZVAL_UNDEFINED_OP2();
-				if (UNEXPECTED(EG(exception) != NULL)) {
-					zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-					HANDLE_EXCEPTION();
-				}
-			}
-			zend_throw_error(NULL, "Method name must be a string");
-			zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-			HANDLE_EXCEPTION();
-		} while (0);
-	}
-
-	if ((IS_TMP_VAR|IS_VAR) == IS_UNUSED) {
-		obj = Z_OBJ_P(object);
-	} else {
-		do {
-			if ((IS_TMP_VAR|IS_VAR) != IS_CONST && EXPECTED(Z_TYPE_P(object) == IS_OBJECT)) {
-				obj = Z_OBJ_P(object);
-			} else {
-				if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && EXPECTED(Z_ISREF_P(object))) {
-					zend_reference *ref = Z_REF_P(object);
-
-					object = &ref->val;
-					if (EXPECTED(Z_TYPE_P(object) == IS_OBJECT)) {
-						obj = Z_OBJ_P(object);
-						if ((IS_TMP_VAR|IS_VAR) & IS_VAR) {
-							if (UNEXPECTED(GC_DELREF(ref) == 0)) {
-								efree_size(ref, sizeof(zend_reference));
-							} else {
-								Z_ADDREF_P(object);
-							}
-						}
-						break;
-					}
-				}
-				if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_TYPE_P(object) == IS_UNDEF)) {
-					object = ZVAL_UNDEFINED_OP1();
-					if (UNEXPECTED(EG(exception) != NULL)) {
-						if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-							zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-						}
-						HANDLE_EXCEPTION();
-					}
-				}
-				if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-					function_name = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-				}
-				zend_invalid_method_call(object, function_name);
-				zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-				HANDLE_EXCEPTION();
-			}
-		} while (0);
-	}
-
-	called_scope = obj->ce;
-
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST &&
-	    EXPECTED(CACHED_PTR(opline->result.num) == called_scope)) {
-		fbc = CACHED_PTR(opline->result.num + sizeof(void*));
-	} else {
-		zend_object *orig_obj = obj;
-
-		if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-			function_name = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-		}
-
-		/* First, locate the function. */
-		fbc = obj->handlers->get_method(&obj, Z_STR_P(function_name), (((IS_TMP_VAR|IS_VAR) == IS_CONST) ? (RT_CONSTANT(opline, opline->op2) + 1) : NULL));
-		if (UNEXPECTED(fbc == NULL)) {
-			if (EXPECTED(!EG(exception))) {
-				zend_undefined_method(orig_obj->ce, Z_STR_P(function_name));
-			}
-			zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-			if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_TMP_VAR)) && GC_DELREF(orig_obj) == 0) {
-				zend_objects_store_del(orig_obj);
-			}
-			HANDLE_EXCEPTION();
-		}
-		if ((IS_TMP_VAR|IS_VAR) == IS_CONST &&
-		    EXPECTED(!(fbc->common.fn_flags & (ZEND_ACC_CALL_VIA_TRAMPOLINE|ZEND_ACC_NEVER_CACHE))) &&
-		    EXPECTED(obj == orig_obj)) {
-			CACHE_POLYMORPHIC_PTR(opline->result.num, called_scope, fbc);
-		}
-		if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_TMP_VAR)) && UNEXPECTED(obj != orig_obj)) {
-			GC_ADDREF(obj); /* For $this pointer */
-			if (GC_DELREF(orig_obj) == 0) {
-				zend_objects_store_del(orig_obj);
-			}
-		}
-		if (EXPECTED(fbc->type == ZEND_USER_FUNCTION) && UNEXPECTED(!RUN_TIME_CACHE(&fbc->op_array))) {
-			init_func_run_time_cache(&fbc->op_array);
-		}
-	}
-
-	if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	}
-
-	call_info = ZEND_CALL_NESTED_FUNCTION | ZEND_CALL_HAS_THIS;
-	if (UNEXPECTED((fbc->common.fn_flags & ZEND_ACC_STATIC) != 0)) {
-		if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_TMP_VAR)) && GC_DELREF(obj) == 0) {
-			zend_objects_store_del(obj);
-			if (UNEXPECTED(EG(exception))) {
-				HANDLE_EXCEPTION();
-			}
-		}
-		/* call static method */
-		obj = (zend_object*)called_scope;
-		call_info = ZEND_CALL_NESTED_FUNCTION;
-	} else if ((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_TMP_VAR|IS_CV)) {
-		if ((IS_TMP_VAR|IS_VAR) == IS_CV) {
-			GC_ADDREF(obj); /* For $this pointer */
-		}
-		/* CV may be changed indirectly (e.g. when it's a reference) */
-		call_info = ZEND_CALL_NESTED_FUNCTION | ZEND_CALL_HAS_THIS | ZEND_CALL_RELEASE_THIS;
-	}
-
-	call = zend_vm_stack_push_call_frame(call_info,
-		fbc, opline->extended_value, obj);
-	call->prev_execute_data = EX(call);
-	EX(call) = call;
-
-	ZEND_VM_NEXT_OPCODE();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_CASE_SPEC_TMPVAR_TMPVAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	double d1, d2;
-
-	op1 = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	if (EXPECTED(Z_TYPE_P(op1) == IS_LONG)) {
-		if (EXPECTED(Z_TYPE_P(op2) == IS_LONG)) {
-			if (EXPECTED(Z_LVAL_P(op1) == Z_LVAL_P(op2))) {
-case_true:
-				ZEND_VM_SMART_BRANCH_TRUE();
-			} else {
-case_false:
-				ZEND_VM_SMART_BRANCH_FALSE();
-			}
-		} else if (EXPECTED(Z_TYPE_P(op2) == IS_DOUBLE)) {
-			d1 = (double)Z_LVAL_P(op1);
-			d2 = Z_DVAL_P(op2);
-			goto case_double;
-		}
-	} else if (EXPECTED(Z_TYPE_P(op1) == IS_DOUBLE)) {
-		if (EXPECTED(Z_TYPE_P(op2) == IS_DOUBLE)) {
-			d1 = Z_DVAL_P(op1);
-			d2 = Z_DVAL_P(op2);
-case_double:
-			if (d1 == d2) {
-				goto case_true;
-			} else {
-				goto case_false;
-			}
-		} else if (EXPECTED(Z_TYPE_P(op2) == IS_LONG)) {
-			d1 = Z_DVAL_P(op1);
-			d2 = (double)Z_LVAL_P(op2);
-			goto case_double;
-		}
-	} else if (EXPECTED(Z_TYPE_P(op1) == IS_STRING)) {
-		if (EXPECTED(Z_TYPE_P(op2) == IS_STRING)) {
-			bool result = zend_fast_equal_strings(Z_STR_P(op1), Z_STR_P(op2));
-			zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-			if (result) {
-				goto case_true;
-			} else {
-				goto case_false;
-			}
-		}
-	}
-	ZEND_VM_TAIL_CALL(zend_case_helper_SPEC(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX op1, op2));
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_TMPVAR_TMPVAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *container;
-	bool result;
-	zend_ulong hval;
-	zval *offset;
-
-	SAVE_OPLINE();
-	container = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-	offset = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-
-	if (EXPECTED(Z_TYPE_P(container) == IS_ARRAY)) {
-		HashTable *ht;
-		zval *value;
-		zend_string *str;
-
-isset_dim_obj_array:
-		ht = Z_ARRVAL_P(container);
-isset_again:
-		if (EXPECTED(Z_TYPE_P(offset) == IS_STRING)) {
-			str = Z_STR_P(offset);
-			if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-				if (ZEND_HANDLE_NUMERIC(str, hval)) {
-					goto num_index_prop;
-				}
-			}
-			value = zend_hash_find_ex(ht, str, (IS_TMP_VAR|IS_VAR) == IS_CONST);
-		} else if (EXPECTED(Z_TYPE_P(offset) == IS_LONG)) {
-			hval = Z_LVAL_P(offset);
-num_index_prop:
-			value = zend_hash_index_find(ht, hval);
-		} else if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && EXPECTED(Z_ISREF_P(offset))) {
-			offset = Z_REFVAL_P(offset);
-			goto isset_again;
-		} else {
-			value = zend_find_array_dim_slow(ht, offset EXECUTE_DATA_CC);
-			if (UNEXPECTED(EG(exception))) {
-				result = 0;
-				goto isset_dim_obj_exit;
-			}
-		}
-
-		if (!(opline->extended_value & ZEND_ISEMPTY)) {
-			/* > IS_NULL means not IS_UNDEF and not IS_NULL */
-			result = value != NULL && Z_TYPE_P(value) > IS_NULL &&
-			    (!Z_ISREF_P(value) || Z_TYPE_P(Z_REFVAL_P(value)) != IS_NULL);
-
-			if ((IS_TMP_VAR|IS_VAR) & (IS_CONST|IS_CV)) {
-				/* avoid exception check */
-				zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-				ZEND_VM_SMART_BRANCH(result, 0);
-			}
-		} else {
-			result = (value == NULL || !i_zend_is_true(value));
-		}
-		goto isset_dim_obj_exit;
-	} else if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && EXPECTED(Z_ISREF_P(container))) {
-		container = Z_REFVAL_P(container);
-		if (EXPECTED(Z_TYPE_P(container) == IS_ARRAY)) {
-			goto isset_dim_obj_array;
-		}
-	}
-
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST && Z_EXTRA_P(offset) == ZEND_EXTRA_VALUE) {
-		offset++;
-	}
-	if (!(opline->extended_value & ZEND_ISEMPTY)) {
-		result = zend_isset_dim_slow(container, offset EXECUTE_DATA_CC);
-	} else {
-		result = zend_isempty_dim_slow(container, offset EXECUTE_DATA_CC);
-	}
-
-isset_dim_obj_exit:
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_TMPVAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *container;
-	int result;
-	zval *offset;
-	zend_string *name, *tmp_name;
-
-	SAVE_OPLINE();
-	container = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-	offset = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST ||
-	    ((IS_TMP_VAR|IS_VAR) != IS_UNUSED && UNEXPECTED(Z_TYPE_P(container) != IS_OBJECT))) {
-		if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && Z_ISREF_P(container)) {
-			container = Z_REFVAL_P(container);
-			if (UNEXPECTED(Z_TYPE_P(container) != IS_OBJECT)) {
-				result = (opline->extended_value & ZEND_ISEMPTY);
-				goto isset_object_finish;
-			}
-		} else {
-			result = (opline->extended_value & ZEND_ISEMPTY);
-			goto isset_object_finish;
-		}
-	}
-
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-		name = Z_STR_P(offset);
-	} else {
-		name = zval_try_get_tmp_string(offset, &tmp_name);
-		if (UNEXPECTED(!name)) {
-			result = 0;
-			goto isset_object_finish;
-		}
-	}
-
-	result =
-		(opline->extended_value & ZEND_ISEMPTY) ^
-		Z_OBJ_HT_P(container)->has_property(Z_OBJ_P(container), name, (opline->extended_value & ZEND_ISEMPTY), (((IS_TMP_VAR|IS_VAR) == IS_CONST) ? CACHE_ADDR(opline->extended_value & ~ZEND_ISEMPTY) : NULL));
-
-	if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-		zend_tmp_string_release(tmp_name);
-	}
-
-isset_object_finish:
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ARRAY_KEY_EXISTS_SPEC_TMPVAR_TMPVAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-
-	zval *key, *subject;
-	HashTable *ht;
-	bool result;
-
-	SAVE_OPLINE();
-
-	key = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-	subject = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-
-	if (EXPECTED(Z_TYPE_P(subject) == IS_ARRAY)) {
-array_key_exists_array:
-		ht = Z_ARRVAL_P(subject);
-		result = zend_array_key_exists_fast(ht, key OPLINE_CC EXECUTE_DATA_CC);
-	} else {
-		if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && EXPECTED(Z_ISREF_P(subject))) {
-			subject = Z_REFVAL_P(subject);
-			if (EXPECTED(Z_TYPE_P(subject) == IS_ARRAY)) {
-				goto array_key_exists_array;
-			}
-		}
-		zend_array_key_exists_error(subject, key OPLINE_CC EXECUTE_DATA_CC);
-		result = 0;
-	}
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_INSTANCEOF_SPEC_TMPVAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *expr;
-	bool result;
-
-	SAVE_OPLINE();
-	expr = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-try_instanceof:
-	if (Z_TYPE_P(expr) == IS_OBJECT) {
-		zend_class_entry *ce;
-
-		if (IS_VAR == IS_CONST) {
-			ce = CACHED_PTR(opline->extended_value);
-			if (UNEXPECTED(ce == NULL)) {
-				ce = zend_lookup_class_ex(Z_STR_P(RT_CONSTANT(opline, opline->op2)), Z_STR_P(RT_CONSTANT(opline, opline->op2) + 1), ZEND_FETCH_CLASS_NO_AUTOLOAD);
-				if (EXPECTED(ce)) {
-					CACHE_PTR(opline->extended_value, ce);
-				}
-			}
-		} else if (IS_VAR == IS_UNUSED) {
-			ce = zend_fetch_class(NULL, opline->op2.num);
-			if (UNEXPECTED(ce == NULL)) {
-				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-				ZVAL_UNDEF(EX_VAR(opline->result.var));
-				HANDLE_EXCEPTION();
-			}
-		} else {
-			ce = Z_CE_P(EX_VAR(opline->op2.var));
-		}
-		result = ce && instanceof_function(Z_OBJCE_P(expr), ce);
-	} else if (((IS_TMP_VAR|IS_VAR) & (IS_VAR|IS_CV)) && Z_TYPE_P(expr) == IS_REFERENCE) {
-		expr = Z_REFVAL_P(expr);
-		goto try_instanceof;
-	} else {
-		if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_TYPE_P(expr) == IS_UNDEF)) {
-			ZVAL_UNDEFINED_OP1();
-		}
-		result = 0;
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static zend_never_inline ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_EX int type)
-{
-	USE_OPLINE
-	zval *varname;
-	zval *retval;
-	zend_string *name, *tmp_name;
-	HashTable *target_symbol_table;
-
-	SAVE_OPLINE();
-	varname = _get_zval_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-		name = Z_STR_P(varname);
-	} else if (EXPECTED(Z_TYPE_P(varname) == IS_STRING)) {
-		name = Z_STR_P(varname);
-		tmp_name = NULL;
-	} else {
-		if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_TYPE_P(varname) == IS_UNDEF)) {
-			ZVAL_UNDEFINED_OP1();
-		}
-		name = zval_try_get_tmp_string(varname, &tmp_name);
-		if (UNEXPECTED(!name)) {
-			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
-				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-			}
-			ZVAL_UNDEF(EX_VAR(opline->result.var));
-			HANDLE_EXCEPTION();
-		}
-	}
-
-	target_symbol_table = zend_get_target_symbol_table(opline->extended_value EXECUTE_DATA_CC);
-	retval = zend_hash_find_ex(target_symbol_table, name, (IS_TMP_VAR|IS_VAR) == IS_CONST);
-	if (retval == NULL) {
-		if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
-fetch_this:
-			zend_fetch_this_var(type OPLINE_CC EXECUTE_DATA_CC);
-			if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-				zend_tmp_string_release(tmp_name);
-			}
-			ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-		}
-		if (type == BP_VAR_W) {
-			retval = zend_hash_add_new(target_symbol_table, name, &EG(uninitialized_zval));
-		} else if (type == BP_VAR_IS || type == BP_VAR_UNSET) {
-			retval = &EG(uninitialized_zval);
-		} else {
-			if ((IS_TMP_VAR|IS_VAR) == IS_CV) {
-				/* Keep name alive in case an error handler tries to free it. */
-				zend_string_addref(name);
-			}
-			zend_error_unchecked(E_WARNING, "Undefined %svariable $%S",
-				(opline->extended_value & ZEND_FETCH_GLOBAL ? "global " : ""), name);
-			if (type == BP_VAR_RW && !EG(exception)) {
-				retval = zend_hash_update(target_symbol_table, name, &EG(uninitialized_zval));
-			} else {
-				retval = &EG(uninitialized_zval);
-			}
-			if ((IS_TMP_VAR|IS_VAR) == IS_CV) {
-				zend_string_release(name);
-			}
-		}
-	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
-	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
-		retval = Z_INDIRECT_P(retval);
-
-		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
-		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
-		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
-			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
-				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-			}
-			if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-				zend_tmp_string_release(tmp_name);
-			}
-			zend_throw_error(NULL, "Cannot re-assign final variable.");
-			ZVAL_UNDEF(EX_VAR(opline->result.var));
-			HANDLE_EXCEPTION();
-		}
-
-		if (Z_TYPE_P(retval) == IS_UNDEF) {
-			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
-				goto fetch_this;
-			}
-			if (type == BP_VAR_W) {
-				ZVAL_NULL(retval);
-			} else if (type == BP_VAR_IS || type == BP_VAR_UNSET) {
-				retval = &EG(uninitialized_zval);
-			} else {
-				zend_error_unchecked(E_WARNING, "Undefined %svariable $%S",
-					(opline->extended_value & ZEND_FETCH_GLOBAL ? "global " : ""), name);
-				if (type == BP_VAR_RW && !EG(exception)) {
-					ZVAL_NULL(retval);
-				} else {
-					retval = &EG(uninitialized_zval);
-				}
-			}
-		}
-	}
-
-	if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
-		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	}
-
-	if ((IS_TMP_VAR|IS_VAR) != IS_CONST) {
-		zend_tmp_string_release(tmp_name);
-	}
-
-	ZEND_ASSERT(retval != NULL);
-	if (type == BP_VAR_R || type == BP_VAR_IS) {
-		ZVAL_COPY_DEREF(EX_VAR(opline->result.var), retval);
-	} else {
-		ZVAL_INDIRECT(EX_VAR(opline->result.var), retval);
-	}
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FETCH_R_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	ZEND_VM_TAIL_CALL(zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX BP_VAR_R));
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FETCH_W_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	ZEND_VM_TAIL_CALL(zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX BP_VAR_W));
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FETCH_RW_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	ZEND_VM_TAIL_CALL(zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX BP_VAR_RW));
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FETCH_FUNC_ARG_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	int fetch_type =
-		(UNEXPECTED(ZEND_CALL_INFO(EX(call)) & ZEND_CALL_SEND_ARG_BY_REF)) ?
-			BP_VAR_W : BP_VAR_R;
-	ZEND_VM_TAIL_CALL(zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX fetch_type));
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FETCH_UNSET_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	ZEND_VM_TAIL_CALL(zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX BP_VAR_UNSET));
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_FETCH_IS_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	ZEND_VM_TAIL_CALL(zend_fetch_var_address_helper_SPEC_TMPVAR_UNUSED(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU_EX BP_VAR_IS));
-}
-
-/* No specialization for op_types (CONST|TMPVAR|CV, UNUSED|CONST|VAR) */
-static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_SEND_VAL_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAL_SPEC_TMPVAR_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -22055,6 +21367,21 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			}
+			if (IS_TMP_VAR != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -25941,168 +25268,6 @@ assign_dim_error:
 	ZEND_VM_NEXT_OPCODE_EX(1, 2);
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_CONST_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if (IS_CONST == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = RT_CONSTANT(opline, opline->op2);
-			if (IS_CONST == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = RT_CONSTANT(opline, opline->op2);
-			if (IS_CONST == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if (IS_CONST == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if (IS_CONST == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = RT_CONSTANT(opline, opline->op2);
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = RT_CONSTANT(opline, opline->op2);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = RT_CONSTANT(opline, opline->op2);
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if (IS_CONST != IS_UNUSED) {
-
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_CONST_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SPEC_VAR_CONST_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -26343,7 +25508,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -26382,7 +25547,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RE
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -28945,168 +28110,7 @@ assign_dim_error:
 			}
 		}
 	}
-	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
-		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_TMPVAR_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if ((IS_TMP_VAR|IS_VAR) == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-			if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-			if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if ((IS_TMP_VAR|IS_VAR) == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if ((IS_TMP_VAR|IS_VAR) == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
+	if (IS_TMP_VAR != IS_UNUSED) {
 		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
 	}
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
@@ -29289,6 +28293,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -29318,6 +28330,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -29331,6 +28351,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -29945,400 +29043,85 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_YIELD_SPEC_VA
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SPEC_VAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_IDENTICAL_SPEC_VAR_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_var_deref(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_identical_function(op1, op2);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_CASE_STRICT_SPEC_VAR_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_var_deref(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_identical_function(op1, op2);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_NOT_IDENTICAL_SPEC_VAR_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_var_deref(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_not_identical_function(op1, op2);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_VAR_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_VAR_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_IDENTICAL_SPEC_VAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_var_deref(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var_deref(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_identical_function(op1, op2);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_CASE_STRICT_SPEC_VAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_var_deref(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var_deref(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_identical_function(op1, op2);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_NOT_IDENTICAL_SPEC_VAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_var_deref(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var_deref(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_not_identical_function(op1, op2);
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_VAR_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_VAR_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_REF_SPEC_VAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *variable_ptr;
@@ -30864,168 +29647,6 @@ assign_dim_error:
 }
 
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SPEC_VAR_UNUSED_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_UNUSED_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if (IS_UNUSED == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = NULL;
-			if (IS_UNUSED == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = NULL;
-			if (IS_UNUSED == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if (IS_UNUSED == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if (IS_UNUSED == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = NULL;
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = NULL;
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = NULL;
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if (IS_UNUSED != IS_UNUSED) {
-
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_UNUSED_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *object_ptr, *orig_object_ptr;
@@ -33587,168 +32208,6 @@ assign_dim_error:
 }
 
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SPEC_VAR_CV_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_CV_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if (IS_CV == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = EX_VAR(opline->op2.var);
-			if (IS_CV == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = EX_VAR(opline->op2.var);
-			if (IS_CV == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if (IS_CV == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if (IS_CV == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = EX_VAR(opline->op2.var);
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if (IS_CV != IS_UNUSED) {
-
-	}
-	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_VAR_CV_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *object_ptr, *orig_object_ptr;
@@ -33988,7 +32447,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -34027,7 +32486,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVA
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -45504,168 +43963,6 @@ assign_dim_error:
 }
 
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if (IS_CONST == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = RT_CONSTANT(opline, opline->op2);
-			if (IS_CONST == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = RT_CONSTANT(opline, opline->op2);
-			if (IS_CONST == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if (IS_CONST == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if (IS_CONST == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = RT_CONSTANT(opline, opline->op2);
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = RT_CONSTANT(opline, opline->op2);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = RT_CONSTANT(opline, opline->op2);
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if (IS_CONST != IS_UNUSED) {
-
-	}
-
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *object_ptr, *orig_object_ptr;
@@ -45902,12 +44199,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
 
+
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -45940,12 +44238,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CONST_RET
 
 	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
+
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -45977,6 +44276,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CONST_RET
 	}
 
 	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -46425,6 +44725,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 
+
 		HANDLE_EXCEPTION();
 	}
 
@@ -46473,6 +44774,7 @@ send_var_by_ref:
 		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 			SAVE_OPLINE();
 			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
 
 			HANDLE_EXCEPTION();
 		}
@@ -49662,168 +47964,6 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
 		if (IS_TMP_VAR == IS_UNUSED) {
-		if ((IS_TMP_VAR|IS_VAR) == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-			if ((IS_TMP_VAR|IS_VAR) == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-			if ((IS_TMP_VAR|IS_VAR) == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if ((IS_TMP_VAR|IS_VAR) == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if ((IS_TMP_VAR|IS_VAR) == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if ((IS_TMP_VAR|IS_VAR) != IS_UNUSED) {
-		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	}
-
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_TMPVAR_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if ((IS_TMP_VAR|IS_VAR) == IS_UNUSED) {
 			value = EX_VAR((opline+1)->op1.var);
 			if (IS_CV == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
 				HashTable *ht = Z_ARRVAL_P(object_ptr);
@@ -49976,6 +48116,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -50006,6 +48154,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -50019,6 +48175,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -50954,368 +49188,85 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_YIELD_SPEC_CV
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SPEC_CV_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_IDENTICAL_SPEC_CV_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_cv_deref_BP_VAR_R(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_identical_function(op1, op2);
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_NOT_IDENTICAL_SPEC_CV_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_cv_deref_BP_VAR_R(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_not_identical_function(op1, op2);
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_CV_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_CV_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_IDENTICAL_SPEC_CV_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_cv_deref_BP_VAR_R(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var_deref(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_identical_function(op1, op2);
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_IS_NOT_IDENTICAL_SPEC_CV_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *op1, *op2;
-	bool result;
-
-	SAVE_OPLINE();
-	op1 = _get_zval_ptr_cv_deref_BP_VAR_R(opline->op1.var EXECUTE_DATA_CC);
-	op2 = _get_zval_ptr_var_deref(opline->op2.var EXECUTE_DATA_CC);
-	result = fast_is_not_identical_function(op1, op2);
-
-	zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
-	ZEND_VM_SMART_BRANCH(result, 1);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_SPEC_CV_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(0)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(0)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *value;
-	zval *variable_ptr;
-
-	SAVE_OPLINE();
-	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
-	variable_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
-	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (0 || UNEXPECTED(1)) {
-		zend_refcounted *garbage = NULL;
-
-		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		if (UNEXPECTED(1)) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
-	}
-
-	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
-
-	/* zend_assign_to_variable() always takes care of op2, never free it! */
-
-	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_REF_SPEC_CV_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *variable_ptr;
@@ -51574,6 +49525,7 @@ fetch_this:
 		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
 		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
 			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
 
 			}
 			if (IS_CV != IS_CONST) {
@@ -52044,168 +49996,6 @@ assign_dim_error:
 }
 
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SPEC_CV_UNUSED_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_UNUSED_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if (IS_UNUSED == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = NULL;
-			if (IS_UNUSED == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = NULL;
-			if (IS_UNUSED == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if (IS_UNUSED == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if (IS_UNUSED == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = NULL;
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = NULL;
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = NULL;
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if (IS_UNUSED != IS_UNUSED) {
-
-	}
-
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_UNUSED_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *object_ptr, *orig_object_ptr;
@@ -52514,6 +50304,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 		zend_throw_error(NULL, "Cannot re-assign final variable.");
 
+
 		HANDLE_EXCEPTION();
 	}
 
@@ -52562,6 +50353,7 @@ send_var_by_ref:
 		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 			SAVE_OPLINE();
 			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
 
 			HANDLE_EXCEPTION();
 		}
@@ -52640,6 +50432,7 @@ send_var_by_ref:
 		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 			SAVE_OPLINE();
 			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
 
 			HANDLE_EXCEPTION();
 		}
@@ -55548,168 +53341,6 @@ assign_dim_error:
 }
 
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SPEC_CV_CV_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_CV_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
-{
-	USE_OPLINE
-	zval *object_ptr, *orig_object_ptr;
-	zval *value;
-	zval *variable_ptr;
-	zval *dim;
-	zend_refcounted *garbage = NULL;
-
-	SAVE_OPLINE();
-	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
-
-	/* Check if this is a const variable (only for compiled variables CV) */
-	if ((opline->op1_type == IS_CV) &&
-	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
-	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
-		HANDLE_EXCEPTION();
-	}
-
-	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-try_assign_dim_array:
-		SEPARATE_ARRAY(object_ptr);
-		if (IS_CV == IS_UNUSED) {
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
-				HashTable *ht = Z_ARRVAL_P(object_ptr);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE)) {
-					GC_ADDREF(ht);
-				}
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-				if (!(GC_FLAGS(ht) & IS_ARRAY_IMMUTABLE) && !GC_DELREF(ht)) {
-					zend_array_destroy(ht);
-					goto assign_dim_error;
-				}
-			}
-			if (IS_VAR == IS_CV || IS_VAR == IS_VAR) {
-				ZVAL_DEREF(value);
-			}
-			value = zend_hash_next_index_insert(Z_ARRVAL_P(object_ptr), value);
-			if (UNEXPECTED(value == NULL)) {
-				zend_cannot_add_element();
-				goto assign_dim_error;
-			} else if (IS_VAR == IS_CV) {
-				if (Z_REFCOUNTED_P(value)) {
-					Z_ADDREF_P(value);
-				}
-			} else if (IS_VAR == IS_VAR) {
-				zval *free_op_data = EX_VAR((opline+1)->op1.var);
-				if (Z_ISREF_P(free_op_data)) {
-					if (Z_REFCOUNTED_P(value)) {
-						Z_ADDREF_P(value);
-					}
-					zval_ptr_dtor_nogc(free_op_data);
-				}
-			} else if (IS_VAR == IS_CONST) {
-				if (UNEXPECTED(Z_REFCOUNTED_P(value))) {
-					Z_ADDREF_P(value);
-				}
-			}
-		} else {
-			dim = EX_VAR(opline->op2.var);
-			if (IS_CV == IS_CONST) {
-				variable_ptr = zend_fetch_dimension_address_inner_W_CONST(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			} else {
-				variable_ptr = zend_fetch_dimension_address_inner_W(Z_ARRVAL_P(object_ptr), dim EXECUTE_DATA_CC);
-			}
-			if (UNEXPECTED(variable_ptr == NULL)) {
-				goto assign_dim_error;
-			}
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
-		}
-		if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-			ZVAL_COPY(EX_VAR(opline->result.var), value);
-		}
-		if (garbage) {
-			GC_DTOR_NO_REF(garbage);
-		}
-	} else {
-		if (EXPECTED(Z_ISREF_P(object_ptr))) {
-			object_ptr = Z_REFVAL_P(object_ptr);
-			if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
-				goto try_assign_dim_array;
-			}
-		}
-		if (EXPECTED(Z_TYPE_P(object_ptr) == IS_OBJECT)) {
-			zend_object *obj = Z_OBJ_P(object_ptr);
-
-			GC_ADDREF(obj);
-			dim = EX_VAR(opline->op2.var);
-			if (IS_CV == IS_CV && UNEXPECTED(Z_ISUNDEF_P(dim))) {
-				dim = ZVAL_UNDEFINED_OP2();
-			} else if (IS_CV == IS_CONST && Z_EXTRA_P(dim) == ZEND_EXTRA_VALUE) {
-				dim++;
-			}
-
-			value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-			if (IS_VAR == IS_CV && UNEXPECTED(Z_ISUNDEF_P(value))) {
-				value = zval_undefined_cv((opline+1)->op1.var EXECUTE_DATA_CC);
-			} else if (IS_VAR & (IS_CV|IS_VAR)) {
-				ZVAL_DEREF(value);
-			}
-
-			zend_assign_to_object_dim(obj, dim, value OPLINE_CC EXECUTE_DATA_CC);
-
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(GC_DELREF(obj) == 0)) {
-				zend_objects_store_del(obj);
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) == IS_STRING)) {
-			if (IS_CV == IS_UNUSED) {
-				zend_use_new_element_for_string();
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				dim = EX_VAR(opline->op2.var);
-				value = _get_zval_ptr_var((opline+1)->op1.var EXECUTE_DATA_CC);
-				zend_assign_to_string_offset(object_ptr, dim, value OPLINE_CC EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			}
-		} else if (EXPECTED(Z_TYPE_P(object_ptr) <= IS_FALSE)) {
-			if (Z_ISREF_P(orig_object_ptr)
-			 && ZEND_REF_HAS_TYPE_SOURCES(Z_REF_P(orig_object_ptr))
-			 && !zend_verify_ref_array_assignable(Z_REF_P(orig_object_ptr))) {
-				dim = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
-				zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-				UNDEF_RESULT();
-			} else {
-				HashTable *ht = zend_new_array(8);
-				uint8_t old_type = Z_TYPE_P(object_ptr);
-
-				ZVAL_ARR(object_ptr, ht);
-				if (UNEXPECTED(old_type == IS_FALSE)) {
-					GC_ADDREF(ht);
-					zend_false_to_array_deprecated();
-					if (UNEXPECTED(GC_DELREF(ht) == 0)) {
-						zend_array_destroy(ht);
-						goto assign_dim_error;
-					}
-				}
-				goto try_assign_dim_array;
-			}
-		} else {
-			zend_use_scalar_as_array();
-			dim = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
-assign_dim_error:
-			zval_ptr_dtor_nogc(EX_VAR((opline+1)->op1.var));
-			if (UNEXPECTED(RETURN_VALUE_USED(opline))) {
-				ZVAL_NULL(EX_VAR(opline->result.var));
-			}
-		}
-	}
-	if (IS_CV != IS_UNUSED) {
-
-	}
-
-	/* assign_dim has two opcodes! */
-	ZEND_VM_NEXT_OPCODE_EX(1, 2);
-}
-
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_DIM_SPEC_CV_CV_OP_DATA_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *object_ptr, *orig_object_ptr;
@@ -55946,12 +53577,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
 	}
 
+
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -55984,12 +53616,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL
 
 	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
+
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
-static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
 	zval *value;
@@ -56021,6 +53654,7 @@ static ZEND_OPCODE_HANDLER_RET ZEND_FASTCALL ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL
 	}
 
 	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -79184,6 +76818,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -79201,6 +76844,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
@@ -79254,6 +76906,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -79271,6 +76932,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
@@ -79322,6 +76992,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_I
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
 		fast_long_increment_function(var_ptr);
@@ -79369,6 +77048,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_D
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
@@ -80056,6 +77744,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_VAR
 	SAVE_OPLINE();
 	value = RT_CONSTANT(opline, opline->op2);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -80866,6 +78562,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -81024,6 +78728,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -81177,6 +78889,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -81334,6 +79054,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CO
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -81363,6 +79091,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CO
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -81376,6 +79112,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CO
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -81762,6 +79576,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_VAR_
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -81799,6 +79623,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -82771,6 +80606,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_VAR
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -83571,6 +81414,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -83728,6 +81579,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -83880,6 +81739,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -84036,6 +81903,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_TM
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -84065,6 +81940,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_TM
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -84078,6 +81961,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_TM
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -84692,6 +82653,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_YIELD_SPEC_VAR_TMP
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_VAR_VAR_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -84901,6 +82940,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -85059,6 +83106,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -85212,6 +83267,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -85797,6 +83860,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_VAR_
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -85834,6 +83907,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -85900,6 +83984,17 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -86588,6 +84683,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_VAR
 	SAVE_OPLINE();
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -87398,6 +85501,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -87556,6 +85667,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -87709,6 +85828,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -87866,6 +85993,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CV
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -87895,6 +86030,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CV
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -87908,6 +86051,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CV
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -95356,6 +93577,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -95373,6 +93603,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
@@ -95426,6 +93665,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -95443,6 +93691,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
@@ -95494,6 +93751,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_I
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
 		fast_long_increment_function(var_ptr);
@@ -95541,6 +93807,15 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_D
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
@@ -97815,6 +96090,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_CV_
 	value = RT_CONSTANT(opline, opline->op2);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -98971,6 +97254,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -99130,6 +97421,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -99284,6 +97583,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -99442,6 +97749,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CON
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -99472,6 +97787,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CON
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -99485,6 +97808,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CON
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -99927,6 +98328,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_CV_C
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -99965,6 +98377,18 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_C
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -100669,6 +99093,17 @@ check_indirect:
 			value = Z_INDIRECT_P(value);
 			if (UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
 				ZVAL_NULL(value);
+			}
+
+			/* After resolving INDIRECT, value points to a CV slot where Z_EXTRA is reliable.
+			 * Check if the global variable is a const variable. */
+			if (Z_TYPE_P(value) != IS_NULL
+			    && Z_TYPE_P(value) != IS_REFERENCE
+			    && (Z_EXTRA_P(value) & Z_EXTRA_USER_CONST_VAR)) {
+				SAVE_OPLINE();
+				zend_throw_error(NULL, "Cannot use global with const variable \"%s\"",
+					ZSTR_VAL(varname));
+				HANDLE_EXCEPTION();
 			}
 		}
 	}
@@ -101652,6 +100087,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_CV_
 	SAVE_OPLINE();
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -102791,6 +101234,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -102949,6 +101400,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -103102,6 +101561,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -103259,6 +101726,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_TMP
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -103289,6 +101764,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_TMP
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -103302,6 +101785,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_TMP
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -104237,6 +102798,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_YIELD_SPEC_CV_TMP_
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_CV_VAR_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -104530,6 +103169,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -104689,6 +103336,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -104843,6 +103498,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -105126,6 +103789,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_CV_U
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -105164,6 +103838,18 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_C
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -105231,6 +103917,18 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		/* Check if this is a const variable (only for compiled variables CV) */
+		if ((opline->op1_type == IS_CV) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -105414,11 +104112,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_UNSET_CV_SPEC_CV_U
 		zend_refcounted *garbage = Z_COUNTED_P(var);
 
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 		SAVE_OPLINE();
 		GC_DTOR(garbage);
 		ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 	} else {
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 	}
 	ZEND_VM_NEXT_OPCODE();
 }
@@ -106655,6 +105355,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_CV_
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -107806,6 +106514,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -107965,6 +106681,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -108119,6 +106843,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -108277,6 +107009,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CV_
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -108307,6 +107047,14 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CV_
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	/* Check if this is a re-assignment to a const variable (only for compiled variables CV) */
+	if ((opline->op1_type == IS_CV) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -108320,6 +107068,84 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CV_
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	/* Check if this is a re-assignment to a const variable (only for non-refcounted types) */
+	if (Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_CONST_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -109866,6 +108692,22 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
+
+			}
+			if (IS_CONST != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -109968,6 +108810,21 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			}
+			if (IS_TMP_VAR != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -110070,6 +108927,22 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF && Z_TYPE_P(retval) != IS_NULL &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_CONST_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
+
+			}
+			if (IS_CV != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -112713,6 +111586,8 @@ ZEND_API void execute_ex(zend_execute_data *ex)
 			(void*)&&ZEND_FRAMELESS_ICALL_3_SPEC_OBSERVER_LABEL,
 			(void*)&&ZEND_JMP_FRAMELESS_SPEC_CONST_LABEL,
 			(void*)&&ZEND_INIT_PARENT_PROPERTY_HOOK_CALL_SPEC_CONST_UNUSED_LABEL,
+			(void*)&&ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_LABEL,
+			(void*)&&ZEND_TYPE_ASSERT_SPEC_CONST_LABEL,
 			(void*)&&ZEND_NULL_LABEL,
 			(void*)&&ZEND_NULL_LABEL,
 			(void*)&&ZEND_NULL_LABEL,
@@ -112763,8 +111638,6 @@ ZEND_API void execute_ex(zend_execute_data *ex)
 			(void*)&&ZEND_NULL_LABEL,
 			(void*)&&ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_UNUSED_LABEL,
 			(void*)&&ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_USED_LABEL,
-			(void*)&&ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_LABEL,
-			(void*)&&ZEND_TYPE_ASSERT_SPEC_CONST_LABEL,
 			(void*)&&ZEND_INIT_FCALL_OFFSET_SPEC_CONST_LABEL,
 			(void*)&&ZEND_RECV_NOTYPE_SPEC_LABEL,
 			(void*)&&ZEND_NULL_LABEL,
@@ -121781,6 +120654,8 @@ void zend_vm_init(void)
 		ZEND_FRAMELESS_ICALL_3_SPEC_OBSERVER_HANDLER,
 		ZEND_JMP_FRAMELESS_SPEC_CONST_HANDLER,
 		ZEND_INIT_PARENT_PROPERTY_HOOK_CALL_SPEC_CONST_UNUSED_HANDLER,
+		ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_HANDLER,
+		ZEND_TYPE_ASSERT_SPEC_CONST_HANDLER,
 		ZEND_NULL_HANDLER,
 		ZEND_NULL_HANDLER,
 		ZEND_NULL_HANDLER,
@@ -121831,8 +120706,6 @@ void zend_vm_init(void)
 		ZEND_NULL_HANDLER,
 		ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_UNUSED_HANDLER,
 		ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_USED_HANDLER,
-		ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_HANDLER,
-		ZEND_TYPE_ASSERT_SPEC_CONST_HANDLER,
 		ZEND_INIT_FCALL_OFFSET_SPEC_CONST_HANDLER,
 		ZEND_RECV_NOTYPE_SPEC_HANDLER,
 		ZEND_NULL_HANDLER,
@@ -125311,6 +124184,56 @@ void zend_vm_init(void)
 		ZEND_INIT_PARENT_PROPERTY_HOOK_CALL_SPEC_CONST_UNUSED_TAILCALL_HANDLER,
 		ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_TAILCALL_HANDLER,
 		ZEND_TYPE_ASSERT_SPEC_CONST_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_CONST_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_TMP_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_VAR_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_VAR_CV_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_CONST_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_TMP_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_VAR_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_CONST_SPEC_CV_CV_RETVAL_USED_TAILCALL_HANDLER,
 		ZEND_INIT_FCALL_OFFSET_SPEC_CONST_TAILCALL_HANDLER,
 		ZEND_RECV_NOTYPE_SPEC_TAILCALL_HANDLER,
 		ZEND_NULL_TAILCALL_HANDLER,
@@ -126279,8 +125202,7 @@ void zend_vm_init(void)
 		1255,
 		1256 | SPEC_RULE_OP1,
 		1261 | SPEC_RULE_OP1,
-		3536,
-		3474,
+		3524,
 		1266 | SPEC_RULE_OP1,
 		1271 | SPEC_RULE_OP1,
 		1276 | SPEC_RULE_OP2,
@@ -126314,8 +125236,7 @@ void zend_vm_init(void)
 		1559 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
 		1584 | SPEC_RULE_OP1,
 		1589,
-		3536,
-		3474,
+		3524,
 		1590 | SPEC_RULE_OP1,
 		1595 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
 		1620 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
@@ -126448,110 +125369,50 @@ void zend_vm_init(void)
 		2556,
 		2557,
 		2558,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		2527 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
-		2552 | SPEC_RULE_OP1,
-		2557 | SPEC_RULE_OP1,
-		2562,
-		2563,
-		2564,
-		2565,
-		2566,
-		2567 | SPEC_RULE_OBSERVER,
-		2569 | SPEC_RULE_OBSERVER,
-		2571 | SPEC_RULE_OBSERVER,
-		2573 | SPEC_RULE_OBSERVER,
-		2575,
-		2576,
-		2577 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_RETVAL,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
-		3536,
+		2559 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_RETVAL,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
 	};
 #if 0
 #elif (ZEND_VM_KIND == ZEND_VM_KIND_HYBRID)
@@ -126728,8 +125589,7 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2567 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
-				spec = 2635 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2617 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 				if (op->op1_type < op->op2_type) {
 					zend_swap_operands(op);
 				}
@@ -126737,8 +125597,7 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2660 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
-				spec = 2592 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2642 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 				if (op->op1_type < op->op2_type) {
 					zend_swap_operands(op);
 				}
@@ -126746,8 +125605,7 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2617 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
-				spec = 2685 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2667 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 				if (op->op1_type < op->op2_type) {
 					zend_swap_operands(op);
 				}
@@ -126758,20 +125616,17 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2710 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
-				spec = 2642 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 2692 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			} else if (op1_info == MAY_BE_LONG && op2_info == MAY_BE_LONG) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2735 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
-				spec = 2667 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 2717 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2760 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
-				spec = 2692 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 2742 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			}
 			break;
 		case ZEND_MUL:
@@ -126782,20 +125637,17 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2717 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
-				spec = 2785 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2767 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_LONG && op2_info == MAY_BE_LONG) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2810 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
-				spec = 2742 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2792 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2767 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
-				spec = 2835 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2817 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_IDENTICAL:
@@ -126806,14 +125658,16 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2810 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2842 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2885 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2917 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+			} else if (op->op2_type == IS_CONST && (Z_TYPE_P(RT_CONSTANT(op, op->op2)) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(RT_CONSTANT(op, op->op2))) == 0)) {
+				spec = 3142 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op->op1_type == IS_CV && (op->op2_type & (IS_CONST|IS_CV)) && !(op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) && !(op2_info & (MAY_BE_UNDEF|MAY_BE_REF))) {
-				spec = 3110 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 3148 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_NOT_IDENTICAL:
@@ -126824,14 +125678,16 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2960 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2992 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3035 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 3067 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+			} else if (op->op2_type == IS_CONST && (Z_TYPE_P(RT_CONSTANT(op, op->op2)) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(RT_CONSTANT(op, op->op2))) == 0)) {
+				spec = 3145 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op->op1_type == IS_CV && (op->op2_type & (IS_CONST|IS_CV)) && !(op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) && !(op2_info & (MAY_BE_UNDEF|MAY_BE_REF))) {
-				spec = 3115 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 3153 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_EQUAL:
@@ -126842,12 +125698,12 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2810 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2842 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2885 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2917 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_NOT_EQUAL:
@@ -126858,12 +125714,12 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2960 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2992 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3035 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 3067 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_SMALLER:
@@ -126871,12 +125727,12 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3120 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3158 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3195 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3233 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			}
 			break;
 		case ZEND_IS_SMALLER_OR_EQUAL:
@@ -126884,79 +125740,79 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3270 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3308 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3345 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3383 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			}
 			break;
 		case ZEND_QM_ASSIGN:
 			if (op1_info == MAY_BE_LONG) {
-				spec = 3432 | SPEC_RULE_OP1;
+				spec = 3470 | SPEC_RULE_OP1;
 			} else if (op1_info == MAY_BE_DOUBLE) {
-				spec = 3437 | SPEC_RULE_OP1;
+				spec = 3475 | SPEC_RULE_OP1;
 			} else if ((op->op1_type == IS_CONST) ? !Z_REFCOUNTED_P(RT_CONSTANT(op, op->op1)) : (!(op1_info & ((MAY_BE_ANY|MAY_BE_UNDEF)-(MAY_BE_NULL|MAY_BE_FALSE|MAY_BE_TRUE|MAY_BE_LONG|MAY_BE_DOUBLE))))) {
-				spec = 3442 | SPEC_RULE_OP1;
+				spec = 3480 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_PRE_INC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3420 | SPEC_RULE_RETVAL;
+				spec = 3458 | SPEC_RULE_RETVAL;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3422 | SPEC_RULE_RETVAL;
+				spec = 3460 | SPEC_RULE_RETVAL;
 			}
 			break;
 		case ZEND_PRE_DEC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3424 | SPEC_RULE_RETVAL;
+				spec = 3462 | SPEC_RULE_RETVAL;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3426 | SPEC_RULE_RETVAL;
+				spec = 3464 | SPEC_RULE_RETVAL;
 			}
 			break;
 		case ZEND_POST_INC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3428;
+				spec = 3466;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3429;
+				spec = 3467;
 			}
 			break;
 		case ZEND_POST_DEC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3430;
+				spec = 3468;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3431;
+				spec = 3469;
 			}
 			break;
 		case ZEND_JMP:
 			if (OP_JMP_ADDR(op, op->op1) > op) {
-				spec = 2584;
+				spec = 2616;
 			}
 			break;
 		case ZEND_INIT_FCALL:
 			if (Z_EXTRA_P(RT_CONSTANT(op, op->op2)) != 0) {
-				spec = 2577;
+				spec = 2609;
 			}
 			break;
 		case ZEND_RECV:
 			if (op->op2.num == MAY_BE_ANY) {
-				spec = 2578;
+				spec = 2610;
 			}
 			break;
 		case ZEND_SEND_VAL:
 			if (op->op1_type == IS_CONST && op->op2_type == IS_UNUSED && !Z_REFCOUNTED_P(RT_CONSTANT(op, op->op1))) {
-				spec = 3482;
+				spec = 3520;
 			}
 			break;
 		case ZEND_SEND_VAR_EX:
 			if (op->op2_type == IS_UNUSED && op->op2.num <= MAX_ARG_FLAG_NUM && (op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) == 0) {
-				spec = 3477 | SPEC_RULE_OP1;
+				spec = 3515 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_FE_FETCH_R:
 			if (op->op2_type == IS_CV && (op1_info & (MAY_BE_ANY|MAY_BE_REF)) == MAY_BE_ARRAY) {
-				spec = 3484 | SPEC_RULE_RETVAL;
+				spec = 3522 | SPEC_RULE_RETVAL;
 			}
 			break;
 		case ZEND_FETCH_DIM_R:
@@ -126964,22 +125820,22 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3447 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 3485 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			}
 			break;
 		case ZEND_SEND_VAL_EX:
 			if (op->op2_type == IS_UNUSED && op->op2.num <= MAX_ARG_FLAG_NUM && op->op1_type == IS_CONST && !Z_REFCOUNTED_P(RT_CONSTANT(op, op->op1))) {
-				spec = 3483;
+				spec = 3521;
 			}
 			break;
 		case ZEND_SEND_VAR:
 			if (op->op2_type == IS_UNUSED && (op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) == 0) {
-				spec = 3472 | SPEC_RULE_OP1;
+				spec = 3510 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_COUNT:
 			if ((op1_info & (MAY_BE_ANY|MAY_BE_UNDEF|MAY_BE_REF)) == MAY_BE_ARRAY) {
-				spec = 2579 | SPEC_RULE_OP1;
+				spec = 2611 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_BW_OR:

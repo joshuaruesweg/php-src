@@ -3600,25 +3600,20 @@ static void zend_compile_assign_const(znode *result, zend_ast *ast)
 	zend_ast *var_ast = ast->child[0];
 	zend_ast *expr_ast = ast->child[1];
 
-
-	// Compile-time validation and variable name extraction
 	if (var_ast->kind != ZEND_AST_VAR || var_ast->child[0]->kind != ZEND_AST_ZVAL) {
 		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be a variable for const assignment");
 	}
 
-	// Generate the ASSIGN_CONST opcode for runtime checking
 	znode var_node, expr_node;
-	zend_op *opline;
+	uint32_t offset;
 
-	zend_compile_var(&var_node, var_ast, BP_VAR_W, 0);
+	offset = zend_delayed_compile_begin();
+	zend_delayed_compile_var(&var_node, var_ast, BP_VAR_W, false);
 	zend_compile_expr(&expr_node, expr_ast);
+	zend_delayed_compile_end(offset);
+	CG(zend_lineno) = zend_ast_get_lineno(var_ast);
+	zend_emit_op_tmp(result, ZEND_ASSIGN_CONST, &var_node, &expr_node);
 
-	opline = zend_emit_op(result, ZEND_ASSIGN_CONST, &var_node, &expr_node);
-	if (result && result->op_type == IS_VAR) {
-		GET_NODE(result, opline->result);
-	}
-
-	/* Mark the CV as const in the op_array bitset for compile-time checks */
 	if (var_node.op_type == IS_CV) {
 		uint32_t cv_num = EX_VAR_TO_NUM(var_node.u.op.var);
 		if (cv_num < 32) {
@@ -12115,6 +12110,12 @@ static void zend_compile_stmt(zend_ast *ast) /* {{{ */
 		case ZEND_AST_ASSIGN: {
 			znode result;
 			zend_compile_assign(&result, ast, /* stmt */ true, BP_VAR_R);
+			zend_do_free(&result);
+			return;
+		}
+		case ZEND_AST_ASSIGN_CONST: {
+			znode result;
+			zend_compile_assign_const(&result, ast);
 			zend_do_free(&result);
 			return;
 		}

@@ -699,19 +699,9 @@ PHPAPI void php_build_argv(const char *s, zval *track_vars_array)
 	}
 
 	if (SG(request_info).argc) {
-		zval *inserted_argv, *inserted_argc;
-
 		Z_ADDREF(arr);
-		inserted_argv = zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV), &arr);
-		inserted_argc = zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGC), &argc);
-
-		/* Fix Z_EXTRA in the symbol table entries */
-		if (inserted_argv) {
-			Z_EXTRA_P(inserted_argv) = 0;
-		}
-		if (inserted_argc) {
-			Z_EXTRA_P(inserted_argc) = 0;
-		}
+		zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGV), &arr);
+		zend_hash_update(&EG(symbol_table), ZSTR_KNOWN(ZEND_STR_ARGC), &argc);
 	}
 	if (track_vars_array && Z_TYPE_P(track_vars_array) == IS_ARRAY) {
 		Z_ADDREF(arr);
