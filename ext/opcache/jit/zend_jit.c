@@ -2013,8 +2013,14 @@ static int zend_jit(const zend_op_array *op_array, zend_ssa *ssa, const zend_op 
 							goto jit_failure;
 						}
 						goto done;
+					case ZEND_ASSIGN_CONST:
+						break;
 					case ZEND_ASSIGN:
 						if (opline->op1_type != IS_CV) {
+							break;
+						}
+						if (op_array->const_var_flags
+						 && zend_bitset_in(op_array->const_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
 							break;
 						}
 						if (PROFITABILITY_CHECKS && (!ssa->ops || !ssa->var_info)) {

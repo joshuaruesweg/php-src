@@ -49,6 +49,7 @@ static zend_always_inline void zend_dfg_add_use_def_op_impl(const zend_op_array 
 	}
 
 	switch (opline->opcode) {
+		case ZEND_ASSIGN_CONST:
 		case ZEND_ASSIGN:
 			if ((build_flags & ZEND_SSA_RC_INFERENCE) && opline->op2_type == IS_CV) {
 				zend_bitset_incl(def, EX_VAR_TO_NUM(opline->op2.var));

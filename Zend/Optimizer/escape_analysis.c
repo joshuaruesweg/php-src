@@ -188,6 +188,7 @@ static bool is_allocation_def(zend_op_array *op_array, zend_ssa *ssa, int def, i
 					return true;
 				}
 				break;
+			case ZEND_ASSIGN_CONST:
 			case ZEND_ASSIGN:
 				if (opline->op1_type == IS_CV && (OP1_INFO() & MAY_BE_ARRAY)) {
 					return true;
@@ -196,6 +197,7 @@ static bool is_allocation_def(zend_op_array *op_array, zend_ssa *ssa, int def, i
 		}
 	} else if (ssa_op->op1_def == var) {
 		switch (opline->opcode) {
+			case ZEND_ASSIGN_CONST:
 			case ZEND_ASSIGN:
 				if (opline->op2_type == IS_CONST
 				 && Z_TYPE_P(CRT_CONSTANT(opline->op2)) == IS_ARRAY) {
@@ -275,6 +277,7 @@ static bool is_escape_use(zend_op_array *op_array, zend_ssa *ssa, int use, int v
 
 	if (ssa_op->op1_use == var) {
 		switch (opline->opcode) {
+			case ZEND_ASSIGN_CONST:
 			case ZEND_ASSIGN:
 				/* no_val */
 				break;
@@ -344,6 +347,7 @@ static bool is_escape_use(zend_op_array *op_array, zend_ssa *ssa, int use, int v
 
 	if (ssa_op->op2_use == var) {
 		switch (opline->opcode) {
+			case ZEND_ASSIGN_CONST:
 			case ZEND_ASSIGN:
 				if (opline->op1_type != IS_CV
 				 || (OP1_INFO() & MAY_BE_REF)

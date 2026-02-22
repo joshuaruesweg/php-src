@@ -879,11 +879,18 @@ static void sccp_visit_instr(scdf_ctx *scdf, zend_op *opline, zend_ssa_op *ssa_o
 	op2 = get_op2_value(ctx, opline, ssa_op);
 
 	switch (opline->opcode) {
+		case ZEND_ASSIGN_CONST:
 		case ZEND_ASSIGN:
 			/* The value of op1 is irrelevant here, because we are overwriting it
 			 * -- unless it can be a reference, in which case we propagate a BOT.
 			 * The result is also BOT in this case, because it might be a typed reference. */
 			if (IS_BOT(op1) && (ctx->scdf.ssa->var_info[ssa_op->op1_use].type & MAY_BE_REF)) {
+				SET_RESULT_BOT(op1);
+				SET_RESULT_BOT(result);
+			} else if (opline->opcode == ZEND_ASSIGN
+			        && opline->op1_type == IS_CV
+			        && ctx->scdf.op_array->const_var_flags
+			        && zend_bitset_in(ctx->scdf.op_array->const_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
 				SET_RESULT_BOT(op1);
 				SET_RESULT_BOT(result);
 			} else {
@@ -2135,8 +2142,8 @@ static uint32_t try_remove_definition(sccp_ctx *ctx, int var_num, zend_ssa_var *
 		zend_ssa_op *ssa_op = &ssa->ops[var->definition];
 
 		if (ssa_op->result_def == var_num) {
-			if (opline->opcode == ZEND_ASSIGN) {
-				/* We can't drop the ASSIGN, but we can remove the result. */
+			if (opline->opcode == ZEND_ASSIGN || opline->opcode == ZEND_ASSIGN_CONST) {
+				/* We can't drop the ASSIGN/ASSIGN_CONST, but we can remove the result. */
 				if (var->use_chain < 0 && var->phi_use_chain == NULL) {
 					opline->result_type = IS_UNUSED;
 					zend_ssa_remove_result_def(ssa, ssa_op);
@@ -2146,6 +2153,7 @@ static uint32_t try_remove_definition(sccp_ctx *ctx, int var_num, zend_ssa_var *
 			if (ssa_op->op1_def >= 0 || ssa_op->op2_def >= 0) {
 				if (var->use_chain < 0 && var->phi_use_chain == NULL) {
 					switch (opline->opcode) {
+						case ZEND_ASSIGN_CONST:
 						case ZEND_ASSIGN:
 						case ZEND_ASSIGN_REF:
 						case ZEND_ASSIGN_DIM:
@@ -2261,7 +2269,7 @@ static uint32_t try_remove_definition(sccp_ctx *ctx, int var_num, zend_ssa_var *
 				}
 			}
 		} else if (ssa_op->op1_def == var_num) {
-			if (opline->opcode == ZEND_ASSIGN) {
+			if (opline->opcode == ZEND_ASSIGN || opline->opcode == ZEND_ASSIGN_CONST) {
 				/* Leave assigns to DCE (due to dtor effects) */
 				return 0;
 			}

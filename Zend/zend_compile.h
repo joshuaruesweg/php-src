@@ -24,6 +24,7 @@
 #include "zend_types.h"
 #include "zend_map_ptr.h"
 #include "zend_alloc.h"
+#include "zend_bitset.h"
 #include "zend_vm_opcodes.h"
 
 #include <stdarg.h>
@@ -198,6 +199,7 @@ typedef struct _zend_oparray_context {
 	zend_op_array *op_array;
 	uint32_t   opcodes_size;
 	uint32_t   vars_size;
+	uint32_t   const_var_flags_size;
 	uint32_t   literals_size;
 	uint32_t   fast_call_var;
 	uint32_t   try_catch_offset;
@@ -550,7 +552,7 @@ struct _zend_op_array {
 	uint32_t cache_size; /* number of run_time_cache_slots * sizeof(void*) */
 	int last_var;        /* number of CV variables */
 	uint32_t last;       /* number of opcodes */
-	uint32_t const_var_flags; /* bitset: bit i = CV #i is a const variable */
+	zend_bitset const_var_flags; /* bitset: bit i = CV #i is a const variable */
 
 	zend_op *opcodes;
 	ZEND_MAP_PTR_DEF(HashTable *, static_variables_ptr);

@@ -561,6 +561,7 @@ static zend_always_inline int _zend_ssa_rename_op(const zend_op_array *op_array,
 	}
 
 	switch (opline->opcode) {
+		case ZEND_ASSIGN_CONST:
 		case ZEND_ASSIGN:
 			if ((build_flags & ZEND_SSA_RC_INFERENCE) && opline->op2_type == IS_CV) {
 				ssa_ops[k].op2_def = ssa_vars_count;

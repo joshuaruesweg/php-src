@@ -335,6 +335,7 @@ void zend_oparray_context_begin(zend_oparray_context *prev_context, zend_op_arra
 	CG(context).op_array = op_array;
 	CG(context).opcodes_size = INITIAL_OP_ARRAY_SIZE;
 	CG(context).vars_size = 0;
+	CG(context).const_var_flags_size = 0;
 	CG(context).literals_size = 0;
 	CG(context).fast_call_var = -1;
 	CG(context).try_catch_offset = -1;
@@ -3616,9 +3617,18 @@ static void zend_compile_assign_const(znode *result, zend_ast *ast)
 
 	if (var_node.op_type == IS_CV) {
 		uint32_t cv_num = EX_VAR_TO_NUM(var_node.u.op.var);
-		if (cv_num < 32) {
-			CG(active_op_array)->const_var_flags |= (1u << cv_num);
+		uint32_t needed_len = zend_bitset_len(cv_num + 1);
+		if (needed_len > CG(context).const_var_flags_size) {
+			CG(active_op_array)->const_var_flags = erealloc(
+				CG(active_op_array)->const_var_flags,
+				needed_len * ZEND_BITSET_ELM_SIZE);
+			memset(
+				CG(active_op_array)->const_var_flags + CG(context).const_var_flags_size,
+				0,
+				(needed_len - CG(context).const_var_flags_size) * ZEND_BITSET_ELM_SIZE);
+			CG(context).const_var_flags_size = needed_len;
 		}
+		zend_bitset_incl(CG(active_op_array)->const_var_flags, cv_num);
 	}
 }
 /* }}} */
