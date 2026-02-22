@@ -270,7 +270,7 @@ static YYSIZE_T zend_yytnamerr(char*, const char*);
 %type <ast> callable_expr callable_variable static_member new_variable
 %type <ast> encaps_var encaps_var_offset isset_variables
 %type <ast> top_statement_list use_declarations const_list inner_statement_list if_stmt
-%type <ast> alt_if_stmt for_cond_exprs for_exprs switch_case_list global_var_list static_var_list
+%type <ast> alt_if_stmt for_cond_exprs for_exprs switch_case_list global_var_list static_var_list readonly_var_list readonly_var
 %type <ast> echo_expr_list unset_variables catch_name_list catch_list optional_variable parameter_list class_statement_list
 %type <ast> implements_list case_list if_stmt_without_else
 %type <ast> non_empty_parameter_list argument_list non_empty_argument_list property_list
@@ -542,6 +542,7 @@ statement:
 	|	T_GOTO T_STRING ';' { $$ = zend_ast_create(ZEND_AST_GOTO, $2); }
 	|	T_STRING ':' { $$ = zend_ast_create(ZEND_AST_LABEL, $1); }
 	|	T_VOID_CAST expr ';' { $$ = zend_ast_create(ZEND_AST_CAST_VOID, $2); }
+	|	T_READONLY readonly_var_list ';'	{ $$ = $2; }
 ;
 
 catch_list:
@@ -975,6 +976,16 @@ static_var:
 	|	T_VARIABLE '=' expr	{ $$ = zend_ast_create(ZEND_AST_STATIC, $1, $3); }
 ;
 
+readonly_var_list:
+		readonly_var_list ',' readonly_var { $$ = zend_ast_list_add($1, $3); }
+	|	readonly_var { $$ = zend_ast_create_list(1, ZEND_AST_STMT_LIST, $1); }
+;
+
+readonly_var:
+		T_VARIABLE '=' expr
+			{ $$ = zend_ast_create(ZEND_AST_ASSIGN_READONLY, zend_ast_create(ZEND_AST_VAR, $1), $3); }
+;
+
 class_statement_list:
 		class_statement_list class_statement
 			{ $$ = zend_ast_list_add($1, $2); }
@@ -1271,8 +1282,6 @@ expr:
 			name->attr = ZEND_NAME_FQ;
 			$$ = zend_ast_create(ZEND_AST_CALL, name, zend_ast_create_list(1, ZEND_AST_ARG_LIST, $2));
 		}
-	|	T_READONLY T_VARIABLE '=' expr
-			{ $$ = zend_ast_create(ZEND_AST_ASSIGN_READONLY, zend_ast_create(ZEND_AST_VAR, $2), $4); }
 	|	variable T_PLUS_EQUAL expr
 			{ $$ = zend_ast_create_assign_op(ZEND_ADD, $1, $3); }
 	|	variable T_MINUS_EQUAL expr
