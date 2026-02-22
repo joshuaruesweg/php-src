@@ -1,5 +1,5 @@
 --TEST--
-Test basic const variables.
+Test that increment on readonly variables is forbidden.
 --FILE--
 <?php
 

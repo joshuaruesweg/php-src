@@ -1,5 +1,5 @@
 --TEST--
-Test that global statement is forbidden with const variables.
+Test comma-separated readonly variable declarations.
 --FILE--
 <?php
 

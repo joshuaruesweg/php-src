@@ -1,5 +1,5 @@
 --TEST--
-Test that global statement is forbidden with const variables.
+Test readonly variable declared inside if-block persists in outer scope.
 --FILE--
 <?php
 

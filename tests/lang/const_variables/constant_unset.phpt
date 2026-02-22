@@ -1,5 +1,5 @@
 --TEST--
-Test basic const variables.
+Test that unset removes readonly flag from variable.
 --FILE--
 <?php
 

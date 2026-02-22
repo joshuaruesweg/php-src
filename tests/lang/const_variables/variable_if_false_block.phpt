@@ -1,5 +1,5 @@
 --TEST--
-Test that global statement is forbidden with const variables.
+Test readonly variable in unreachable if(false)-block does not affect outer scope.
 --FILE--
 <?php
 
