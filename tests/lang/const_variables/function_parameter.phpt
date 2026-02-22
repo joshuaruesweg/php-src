@@ -4,30 +4,29 @@ Test const variables as function parameters.
 <?php
 
 function test_function($param) {
-    echo "Received parameter: $param\n";
+    echo "Received parameter: $param", PHP_EOL;
 
     // Try to modify parameter (should work - it's a copy)
     $param = 999;
-    echo "Modified parameter: $param\n";
+    echo "Modified parameter: $param", PHP_EOL;
 }
 
-const $const_value = 42;
-echo "Original const: $const_value\n";
+readonly $const_value = 42;
+echo "Original const: $const_value", PHP_EOL;
 
 test_function($const_value);
 
-echo "Const after function call: $const_value\n";
+echo "Const after function call: $const_value", PHP_EOL;
 
-// Original const should still be immutable
-$const_value = 100;
+try {
+    $const_value = 100;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
---EXPECTF--
+--EXPECT--
 Original const: 42
 Received parameter: 42
 Modified parameter: 999
 Const after function call: 42
-
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.

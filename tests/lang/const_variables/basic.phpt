@@ -3,11 +3,15 @@ Test basic const variables.
 --FILE--
 <?php
 
-const $test = 123;
-$test = 111;
+readonly $test = 123;
+try {
+    $test = 111;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
+// The variable has not changed.
+var_dump($test);
 ?>
---EXPECTF--
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+--EXPECT--
+Error: Cannot re-assign readonly variable.
+int(123)

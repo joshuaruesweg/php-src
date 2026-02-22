@@ -3,20 +3,18 @@ Test compound assignment operators on const variables.
 --FILE--
 <?php
 
-const $number = 10;
-const $string = "hello";
+readonly $number = 10;
 
-echo "Initial number: $number\n";
-echo "Initial string: $string\n";
+echo "Initial number: $number", PHP_EOL;
 
-// Try compound assignment on number
-$number += 5;
+try {
+    $number += 5;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
+var_dump($number);
 ?>
---EXPECTF--
+--EXPECT--
 Initial number: 10
-Initial string: hello
-
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.
+int(10)

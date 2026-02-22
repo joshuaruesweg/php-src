@@ -4,40 +4,39 @@ Test returning const variables from functions.
 <?php
 
 function get_const_value() {
-    const $local_const = "function_value";
+    readonly $local_const = "function_value";
     return $local_const;
 }
 
 function modify_returned_value() {
     $returned = get_const_value();
-    echo "Returned value: $returned\n";
+    echo "Returned value: $returned", PHP_EOL;
 
     // Should be able to modify the returned copy
     $returned = "modified";
-    echo "Modified returned: $returned\n";
+    echo "Modified returned: $returned", PHP_EOL;
 
     return $returned;
 }
 
 $result = modify_returned_value();
-echo "Final result: $result\n";
+echo "Final result: $result", PHP_EOL;
 
 // Test direct const variable return
-const $main_const = 123;
+readonly $main_const = 123;
 $copy = $main_const;
 $copy = 456; // Should work - it's a copy
 echo "Copy: $copy\n";
 
-// Original should still be immutable
-$main_const = 789;
+try {
+    $main_const = 789;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
---EXPECTF--
+--EXPECT--
 Returned value: function_value
 Modified returned: modified
 Final result: modified
 Copy: 456
-
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.

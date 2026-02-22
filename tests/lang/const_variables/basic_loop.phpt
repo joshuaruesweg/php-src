@@ -3,11 +3,12 @@ Test basic loop with const variables.
 --FILE--
 <?php
 foreach ([1, 2] as $a) {
-    const $b = $a;
+    try {
+	    readonly $b = $a;
+	} catch (Throwable $e) {
+	    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+	}
 }
 ?>
---EXPECTF--
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+--EXPECT--
+Error: Cannot re-assign readonly variable.

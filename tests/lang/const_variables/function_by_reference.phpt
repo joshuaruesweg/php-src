@@ -1,20 +1,19 @@
 --TEST--
-Test compound assignment operators on const variables.
+Test that passing readonly variables by reference is forbidden.
 --FILE--
 <?php
 
-const $const = 10;
+readonly $const = 10;
 
 function test(&$var) {
     echo $var;
 }
 
-test($const);
-
-echo $const;
+try {
+    test($const);
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
---EXPECTF--
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+--EXPECT--
+Error: Cannot pass readonly variable by reference

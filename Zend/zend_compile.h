@@ -552,7 +552,7 @@ struct _zend_op_array {
 	uint32_t cache_size; /* number of run_time_cache_slots * sizeof(void*) */
 	int last_var;        /* number of CV variables */
 	uint32_t last;       /* number of opcodes */
-	zend_bitset const_var_flags; /* bitset: bit i = CV #i is a const variable */
+	zend_bitset const_var_flags; /* bitset: bit i = CV #i is a readonly variable */
 
 	zend_op *opcodes;
 	ZEND_MAP_PTR_DEF(HashTable *, static_variables_ptr);

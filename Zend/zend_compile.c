@@ -3602,7 +3602,7 @@ static void zend_compile_assign_const(znode *result, zend_ast *ast)
 	zend_ast *expr_ast = ast->child[1];
 
 	if (var_ast->kind != ZEND_AST_VAR || var_ast->child[0]->kind != ZEND_AST_ZVAL) {
-		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be a variable for const assignment");
+		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be a variable for readonly assignment");
 	}
 
 	znode var_node, expr_node;

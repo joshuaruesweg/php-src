@@ -3,25 +3,25 @@ Test const and normal variables together.
 --FILE--
 <?php
 
-const $const_var = 100;
+readonly $const_var = 100;
 $normal_var = 200;
 
-echo "const_var: $const_var\n";
-echo "normal_var: $normal_var\n";
+echo "const_var: $const_var", PHP_EOL;
+echo "normal_var: $normal_var", PHP_EOL;
 
 // Normal variable should be modifiable
 $normal_var = 300;
-echo "modified normal_var: $normal_var\n";
+echo "modified normal_var: $normal_var", PHP_EOL;
 
-// Const variable should not be modifiable
-$const_var = 400;
+try {
+    // Const variable should not be modifiable
+    $const_var = 400;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
---EXPECTF--
+--EXPECT--
 const_var: 100
 normal_var: 200
 modified normal_var: 300
-
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.

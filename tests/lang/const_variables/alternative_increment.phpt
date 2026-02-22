@@ -3,17 +3,17 @@ Test alternative increment operations on const variables.
 --FILE--
 <?php
 
-const $counter = 5;
+readonly $counter = 5;
 
-echo "Initial counter: $counter\n";
+echo "Initial counter: $counter\n", PHP_EOL;
 
-// Try += 1 instead of ++
-$counter += 1;
+try {
+    $counter += 1;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
---EXPECTF--
+--EXPECT--
 Initial counter: 5
 
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.

@@ -3,17 +3,18 @@ Test string compound assignment on const variables.
 --FILE--
 <?php
 
-const $text = "start";
+readonly $text = "start";
 
-echo "Initial text: $text\n";
+echo "Initial text: $text", PHP_EOL;
 
-// Try string concatenation assignment
-$text .= "_end";
+try {
+    $text .= "_end";
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
+var_dump($text);
 ?>
---EXPECTF--
+--EXPECT--
 Initial text: start
-
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.
+string(5) "start"

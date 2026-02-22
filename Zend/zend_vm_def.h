@@ -1270,7 +1270,7 @@ ZEND_VM_HANDLER(26, ZEND_ASSIGN_OP, VAR|CV, CONST|TMP|CV, OP)
 	    zend_bitset_in(EX(func)->op_array.const_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -1549,7 +1549,7 @@ ZEND_VM_HOT_HANDLER(34, ZEND_PRE_INC, VAR|CV, ANY, SPEC(RETVAL))
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		SAVE_OPLINE();
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -1611,7 +1611,7 @@ ZEND_VM_HOT_HANDLER(35, ZEND_PRE_DEC, VAR|CV, ANY, SPEC(RETVAL))
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		SAVE_OPLINE();
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -1671,7 +1671,7 @@ ZEND_VM_HOT_HANDLER(36, ZEND_POST_INC, VAR|CV, ANY)
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		SAVE_OPLINE();
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -1729,7 +1729,7 @@ ZEND_VM_HOT_HANDLER(37, ZEND_POST_DEC, VAR|CV, ANY)
 	    Z_TYPE_P(var_ptr) != IS_UNDEF && Z_TYPE_P(var_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_CONST_VAR)) {
 		SAVE_OPLINE();
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -1845,7 +1845,7 @@ ZEND_VM_C_LABEL(fetch_this):
 			if (OP1_TYPE != IS_CONST) {
 				zend_tmp_string_release(tmp_name);
 			}
-			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 			ZVAL_UNDEF(EX_VAR(opline->result.var));
 			HANDLE_EXCEPTION();
 		}
@@ -2760,7 +2760,7 @@ ZEND_VM_HANDLER(23, ZEND_ASSIGN_DIM, VAR|CV, CONST|TMP|UNUSED|NEXT|CV, SPEC(OP_D
 	    zend_bitset_in(EX(func)->op_array.const_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
 	    Z_TYPE_P(object_ptr) != IS_UNDEF && Z_TYPE_P(object_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -2920,7 +2920,7 @@ ZEND_VM_HANDLER(22, ZEND_ASSIGN, VAR|CV, CONST|TMP|CV, SPEC(RETVAL))
 	    zend_bitset_in(EX(func)->op_array.const_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
 	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -2957,7 +2957,7 @@ ZEND_VM_HANDLER(212, ZEND_ASSIGN_CONST, VAR|CV, CONST|TMP|VAR|CV, SPEC(RETVAL))
 	    zend_bitset_in(EX(func)->op_array.const_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
 	    Z_TYPE_P(variable_ptr) != IS_UNDEF && Z_TYPE_P(variable_ptr) != IS_NULL &&
 	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_CONST_VAR)) {
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
 		HANDLE_EXCEPTION();
 	}
 
@@ -5256,7 +5256,7 @@ ZEND_VM_HANDLER(67, ZEND_SEND_REF, VAR|CV, CONST|UNUSED|NUM)
 	    Z_TYPE_P(varptr) != IS_UNDEF && Z_TYPE_P(varptr) != IS_NULL &&
 	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 		ZVAL_UNDEF(arg);
-		zend_throw_error(NULL, "Cannot re-assign final variable.");
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
 		FREE_OP1();
 		HANDLE_EXCEPTION();
 	}
@@ -5306,7 +5306,7 @@ ZEND_VM_C_LABEL(send_var_by_ref):
 		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_CONST_VAR)) {
 			ZVAL_UNDEF(arg);
 			SAVE_OPLINE();
-			zend_throw_error(NULL, "Cannot re-assign final variable.");
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
 			FREE_OP1();
 			HANDLE_EXCEPTION();
 		}
@@ -7136,6 +7136,16 @@ ZEND_VM_COLD_CONST_HANDLER(125, ZEND_FE_RESET_RW, CONST|TMP|VAR|CV, JMP_ADDR)
 
 	SAVE_OPLINE();
 
+	if (OP1_TYPE == IS_CV &&
+	    EX(func)->op_array.const_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.const_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF && Z_TYPE_P(cv) != IS_NULL) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
+
 	if (OP1_TYPE == IS_VAR || OP1_TYPE == IS_CV) {
 		array_ref = array_ptr = GET_OP1_ZVAL_PTR_PTR(BP_VAR_R);
 		if (Z_ISREF_P(array_ref)) {
@@ -8907,7 +8917,7 @@ ZEND_VM_C_LABEL(check_indirect):
 			    && Z_TYPE_P(value) != IS_REFERENCE
 			    && (Z_EXTRA_P(value) & Z_EXTRA_USER_CONST_VAR)) {
 				SAVE_OPLINE();
-				zend_throw_error(NULL, "Cannot use global with const variable \"%s\"",
+				zend_throw_error(NULL, "Cannot use global with readonly variable \"%s\"",
 					ZSTR_VAL(varname));
 				HANDLE_EXCEPTION();
 			}

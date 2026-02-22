@@ -3,23 +3,24 @@ Test multiple const variables in same scope.
 --FILE--
 <?php
 
-const $first = 123;
-const $second = "hello";
-const $third = 3.14;
+readonly $first = 123;
+readonly $second = "hello";
+readonly $third = 3.14;
 
-echo "first: $first\n";
-echo "second: $second\n";
-echo "third: $third\n";
+echo "first: $first", PHP_EOL;
+echo "second: $second", PHP_EOL;
+echo "third: $third", PHP_EOL;
 
-// Try to modify first const variable
-$first = 999;
+
+try {
+    // Try to modify first const variable
+    $first = 999;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
---EXPECTF--
+--EXPECT--
 first: 123
 second: hello
 third: 3.14
-
-Fatal error: Uncaught Error: Cannot re-assign final variable. in %s:%d
-Stack trace:
-#0 {main}
-  thrown in %s on line %d
+Error: Cannot re-assign readonly variable.
