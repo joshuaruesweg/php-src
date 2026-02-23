@@ -3605,6 +3605,13 @@ static void zend_compile_assign_readonly(znode *result, zend_ast *ast)
 		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be a variable for readonly assignment");
 	}
 
+	zend_string *var_name = zend_ast_get_str(var_ast->child[0]);
+	if (CG(active_op_array)->static_variables
+		&& zend_hash_exists(CG(active_op_array)->static_variables, var_name)) {
+		zend_error_noreturn(E_COMPILE_ERROR,
+			"Cannot use readonly with static variable \"%s\"", ZSTR_VAL(var_name));
+	}
+
 	znode var_node, expr_node;
 	uint32_t offset;
 
@@ -5819,6 +5826,17 @@ static void zend_compile_static_var(zend_ast *ast) /* {{{ */
 
 	if (zend_string_equals(var_name, ZSTR_KNOWN(ZEND_STR_THIS))) {
 		zend_error_noreturn(E_COMPILE_ERROR, "Cannot use $this as static variable");
+	}
+
+	{
+		uint32_t var = lookup_cv(var_name);
+		uint32_t cv_num = EX_VAR_TO_NUM(var);
+		if (CG(active_op_array)->readonly_var_flags
+			&& zend_bitset_len(cv_num + 1) <= CG(context).readonly_var_flags_size
+			&& zend_bitset_in(CG(active_op_array)->readonly_var_flags, cv_num)) {
+			zend_error_noreturn(E_COMPILE_ERROR,
+				"Cannot use static with readonly variable \"%s\"", ZSTR_VAL(var_name));
+		}
 	}
 
 	if (!CG(active_op_array)->static_variables) {
