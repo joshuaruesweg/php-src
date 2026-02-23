@@ -2959,7 +2959,16 @@ ZEND_VM_HANDLER(212, ZEND_ASSIGN_READONLY, VAR|CV, CONST|TMP|VAR|CV, SPEC(RETVAL
 	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
 	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
 	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		FREE_OP2();
+		UNDEF_RESULT();
 		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		FREE_OP2();
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
 		HANDLE_EXCEPTION();
 	}
 

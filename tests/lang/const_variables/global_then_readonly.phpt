@@ -1,5 +1,5 @@
 --TEST--
-Test that global statement is forbidden with const variables.
+Test that declaring readonly on a global (reference) variable is forbidden.
 --FILE--
 <?php
 $global_const = "global_value";
@@ -15,6 +15,8 @@ function test_global() {
 }
 
 test_global();
+var_dump($global_const);
 ?>
 --EXPECT--
-
+Error: Cannot declare reference variable as readonly.
+string(12) "global_value"
