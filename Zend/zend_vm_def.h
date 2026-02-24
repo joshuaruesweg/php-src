@@ -9442,6 +9442,11 @@ ZEND_VM_HANDLER(183, ZEND_BIND_STATIC, CV, ANY, REF)
 	} else {
 		i_zval_ptr_dtor(variable_ptr);
 		ZVAL_COPY(variable_ptr, value);
+		if ((opline->extended_value & (ZEND_BIND_IMPLICIT|ZEND_BIND_EXPLICIT)) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+			Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+		}
 	}
 
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
