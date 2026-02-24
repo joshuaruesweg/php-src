@@ -3596,40 +3596,6 @@ static void zend_compile_assign(znode *result, zend_ast *ast, bool stmt, uint32_
 	}
 }
 
-static void zend_mark_cv_readonly(uint32_t cv_num) /* {{{ */
-{
-	uint32_t needed_len = zend_bitset_len(cv_num + 1);
-	if (needed_len > CG(context).readonly_var_flags_size) {
-		CG(active_op_array)->readonly_var_flags = erealloc(
-			CG(active_op_array)->readonly_var_flags,
-			needed_len * ZEND_BITSET_ELM_SIZE);
-		memset(
-			CG(active_op_array)->readonly_var_flags + CG(context).readonly_var_flags_size,
-			0,
-			(needed_len - CG(context).readonly_var_flags_size) * ZEND_BITSET_ELM_SIZE);
-		CG(context).readonly_var_flags_size = needed_len;
-	}
-	zend_bitset_incl(CG(active_op_array)->readonly_var_flags, cv_num);
-}
-/* }}} */
-
-static bool zend_is_cv_readonly_in_op_array(const zend_op_array *op_array, uint32_t readonly_flags_size, zend_string *name) /* {{{ */
-{
-	if (!op_array->readonly_var_flags) {
-		return false;
-	}
-	for (int i = 0; i < op_array->last_var; i++) {
-		if (zend_string_equals(op_array->vars[i], name)) {
-			if (zend_bitset_len(i + 1) > readonly_flags_size) {
-				return false;
-			}
-			return zend_bitset_in(op_array->readonly_var_flags, i);
-		}
-	}
-	return false;
-}
-/* }}} */
-
 static void zend_compile_assign_readonly(znode *result, zend_ast *ast)
 {
 	zend_ast *var_ast = ast->child[0];
@@ -3657,7 +3623,19 @@ static void zend_compile_assign_readonly(znode *result, zend_ast *ast)
 	zend_emit_op_tmp(result, ZEND_ASSIGN_READONLY, &var_node, &expr_node);
 
 	if (var_node.op_type == IS_CV) {
-		zend_mark_cv_readonly(EX_VAR_TO_NUM(var_node.u.op.var));
+		uint32_t cv_num = EX_VAR_TO_NUM(var_node.u.op.var);
+		uint32_t needed_len = zend_bitset_len(cv_num + 1);
+		if (needed_len > CG(context).readonly_var_flags_size) {
+			CG(active_op_array)->readonly_var_flags = erealloc(
+				CG(active_op_array)->readonly_var_flags,
+				needed_len * ZEND_BITSET_ELM_SIZE);
+			memset(
+				CG(active_op_array)->readonly_var_flags + CG(context).readonly_var_flags_size,
+				0,
+				(needed_len - CG(context).readonly_var_flags_size) * ZEND_BITSET_ELM_SIZE);
+			CG(context).readonly_var_flags_size = needed_len;
+		}
+		zend_bitset_incl(CG(active_op_array)->readonly_var_flags, cv_num);
 	}
 }
 /* }}} */
@@ -8922,32 +8900,9 @@ static zend_op_array *zend_compile_func_decl_ex(
 	}
 	if (decl->kind == ZEND_AST_ARROW_FUNC) {
 		zend_compile_implicit_closure_uses(&info);
-		if (orig_op_array->readonly_var_flags) {
-			zend_string *var_name;
-			ZEND_HASH_MAP_FOREACH_STR_KEY(&info.uses, var_name)
-				if (zend_is_cv_readonly_in_op_array(orig_op_array,
-						orig_oparray_context.readonly_var_flags_size, var_name)) {
-					uint32_t cv = lookup_cv(var_name);
-					zend_mark_cv_readonly(EX_VAR_TO_NUM(cv));
-				}
-			ZEND_HASH_FOREACH_END();
-		}
 		zend_hash_destroy(&info.uses);
 	} else if (uses_ast) {
 		zend_compile_closure_uses(uses_ast);
-		if (orig_op_array->readonly_var_flags) {
-			const zend_ast_list *use_list = zend_ast_get_list(uses_ast);
-			for (uint32_t ui = 0; ui < use_list->children; ui++) {
-				zend_ast *var_ast = use_list->child[ui];
-				if (var_ast->attr) continue;
-				zend_string *var_name = zend_ast_get_str(var_ast);
-				if (zend_is_cv_readonly_in_op_array(orig_op_array,
-						orig_oparray_context.readonly_var_flags_size, var_name)) {
-					uint32_t cv = lookup_cv(var_name);
-					zend_mark_cv_readonly(EX_VAR_TO_NUM(cv));
-				}
-			}
-		}
 	}
 
 	if (ast->kind == ZEND_AST_ARROW_FUNC && decl->child[2]->kind != ZEND_AST_RETURN) {
