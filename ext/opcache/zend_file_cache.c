@@ -514,6 +514,7 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
 			SERIALIZE_PTR(op_array->opcodes);
 			SERIALIZE_PTR(op_array->arg_info);
 			SERIALIZE_PTR(op_array->vars);
+			SERIALIZE_PTR(op_array->readonly_var_flags);
 			SERIALIZE_STR(op_array->function_name);
 			SERIALIZE_STR(op_array->filename);
 			SERIALIZE_PTR(op_array->live_range);
@@ -676,6 +677,10 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
 				}
 				p++;
 			}
+		}
+
+		if (op_array->readonly_var_flags) {
+			SERIALIZE_PTR(op_array->readonly_var_flags);
 		}
 
 		if (op_array->num_dynamic_func_defs) {
@@ -1445,6 +1450,7 @@ static void zend_file_cache_unserialize_op_array(zend_op_array           *op_arr
 		UNSERIALIZE_PTR(op_array->opcodes);
 		UNSERIALIZE_PTR(op_array->arg_info);
 		UNSERIALIZE_PTR(op_array->vars);
+		UNSERIALIZE_PTR(op_array->readonly_var_flags);
 		UNSERIALIZE_STR(op_array->function_name);
 		UNSERIALIZE_STR(op_array->filename);
 		UNSERIALIZE_PTR(op_array->live_range);
@@ -1578,6 +1584,10 @@ static void zend_file_cache_unserialize_op_array(zend_op_array           *op_arr
 				}
 				p++;
 			}
+		}
+
+		if (op_array->readonly_var_flags) {
+			UNSERIALIZE_PTR(op_array->readonly_var_flags);
 		}
 
 		if (op_array->num_dynamic_func_defs) {

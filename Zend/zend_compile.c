@@ -335,6 +335,7 @@ void zend_oparray_context_begin(zend_oparray_context *prev_context, zend_op_arra
 	CG(context).op_array = op_array;
 	CG(context).opcodes_size = INITIAL_OP_ARRAY_SIZE;
 	CG(context).vars_size = 0;
+	CG(context).readonly_var_flags_size = 0;
 	CG(context).literals_size = 0;
 	CG(context).fast_call_var = -1;
 	CG(context).try_catch_offset = -1;
@@ -3594,6 +3595,49 @@ static void zend_compile_assign(znode *result, zend_ast *ast, bool stmt, uint32_
 		EMPTY_SWITCH_DEFAULT_CASE();
 	}
 }
+
+static void zend_compile_assign_readonly(znode *result, zend_ast *ast)
+{
+	zend_ast *var_ast = ast->child[0];
+	zend_ast *expr_ast = ast->child[1];
+
+	if (var_ast->kind != ZEND_AST_VAR || var_ast->child[0]->kind != ZEND_AST_ZVAL) {
+		zend_error_noreturn(E_COMPILE_ERROR, "Left side must be a variable for readonly assignment");
+	}
+
+	zend_string *var_name = zend_ast_get_str(var_ast->child[0]);
+	if (CG(active_op_array)->static_variables
+		&& zend_hash_exists(CG(active_op_array)->static_variables, var_name)) {
+		zend_error_noreturn(E_COMPILE_ERROR,
+			"Cannot use readonly with static variable \"%s\"", ZSTR_VAL(var_name));
+	}
+
+	znode var_node, expr_node;
+	uint32_t offset;
+
+	offset = zend_delayed_compile_begin();
+	zend_delayed_compile_var(&var_node, var_ast, BP_VAR_W, false);
+	zend_compile_expr(&expr_node, expr_ast);
+	zend_delayed_compile_end(offset);
+	CG(zend_lineno) = zend_ast_get_lineno(var_ast);
+	zend_emit_op_tmp(result, ZEND_ASSIGN_READONLY, &var_node, &expr_node);
+
+	if (var_node.op_type == IS_CV) {
+		uint32_t cv_num = EX_VAR_TO_NUM(var_node.u.op.var);
+		uint32_t needed_len = zend_bitset_len(cv_num + 1);
+		if (needed_len > CG(context).readonly_var_flags_size) {
+			CG(active_op_array)->readonly_var_flags = erealloc(
+				CG(active_op_array)->readonly_var_flags,
+				needed_len * ZEND_BITSET_ELM_SIZE);
+			memset(
+				CG(active_op_array)->readonly_var_flags + CG(context).readonly_var_flags_size,
+				0,
+				(needed_len - CG(context).readonly_var_flags_size) * ZEND_BITSET_ELM_SIZE);
+			CG(context).readonly_var_flags_size = needed_len;
+		}
+		zend_bitset_incl(CG(active_op_array)->readonly_var_flags, cv_num);
+	}
+}
 /* }}} */
 
 static void zend_compile_assign_ref(znode *result, zend_ast *ast, uint32_t type) /* {{{ */
@@ -5140,7 +5184,7 @@ static zend_result zend_compile_func_array_map(znode *result, zend_ast_list *arg
 	 * breaking for the generated call.
 	 */
 	if (callback->kind == ZEND_AST_CALL
-	 && callback->child[0]->kind == ZEND_AST_ZVAL 
+	 && callback->child[0]->kind == ZEND_AST_ZVAL
 	 && Z_TYPE_P(zend_ast_get_zval(callback->child[0])) == IS_STRING
 	 && zend_string_equals_literal_ci(zend_ast_get_str(callback->child[0]), "assert")) {
 		return FAILURE;
@@ -5782,6 +5826,17 @@ static void zend_compile_static_var(zend_ast *ast) /* {{{ */
 
 	if (zend_string_equals(var_name, ZSTR_KNOWN(ZEND_STR_THIS))) {
 		zend_error_noreturn(E_COMPILE_ERROR, "Cannot use $this as static variable");
+	}
+
+	{
+		uint32_t var = lookup_cv(var_name);
+		uint32_t cv_num = EX_VAR_TO_NUM(var);
+		if (CG(active_op_array)->readonly_var_flags
+			&& zend_bitset_len(cv_num + 1) <= CG(context).readonly_var_flags_size
+			&& zend_bitset_in(CG(active_op_array)->readonly_var_flags, cv_num)) {
+			zend_error_noreturn(E_COMPILE_ERROR,
+				"Cannot use static with readonly variable \"%s\"", ZSTR_VAL(var_name));
+		}
 	}
 
 	if (!CG(active_op_array)->static_variables) {
@@ -12086,6 +12141,12 @@ static void zend_compile_stmt(zend_ast *ast) /* {{{ */
 			zend_do_free(&result);
 			return;
 		}
+		case ZEND_AST_ASSIGN_READONLY: {
+			znode result;
+			zend_compile_assign_readonly(&result, ast);
+			zend_do_free(&result);
+			return;
+		}
 		case ZEND_AST_ASSIGN_REF:
 			zend_compile_assign_ref(NULL, ast, BP_VAR_R);
 			return;
@@ -12136,6 +12197,9 @@ static void zend_compile_expr_inner(znode *result, zend_ast *ast) /* {{{ */
 			return;
 		case ZEND_AST_ASSIGN:
 			zend_compile_assign(result, ast, /* stmt */ false, BP_VAR_R);
+			return;
+		case ZEND_AST_ASSIGN_READONLY:
+			zend_compile_assign_readonly(result, ast);
 			return;
 		case ZEND_AST_ASSIGN_REF:
 			zend_compile_assign_ref(result, ast, BP_VAR_R);

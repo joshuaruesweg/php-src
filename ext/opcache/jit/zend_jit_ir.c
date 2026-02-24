@@ -17453,6 +17453,7 @@ static bool zend_jit_opline_supports_reg(const zend_op_array *op_array, zend_ssa
 			return true;
 		case ZEND_RETURN:
 			return (op_array->type != ZEND_EVAL_CODE && op_array->function_name);
+		case ZEND_ASSIGN_READONLY:
 		case ZEND_ASSIGN:
 			return (opline->op1_type == IS_CV);
 		case ZEND_ASSIGN_OP:

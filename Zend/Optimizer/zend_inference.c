@@ -1446,6 +1446,7 @@ ZEND_API bool zend_inference_propagate_range(const zend_op_array *op_array, cons
 				}
 			}
 			break;
+		case ZEND_ASSIGN_READONLY:
 		case ZEND_ASSIGN:
 			if (ssa_op->op1_def == var || ssa_op->op2_def == var || ssa_op->result_def == var) {
 				if (OP2_HAS_RANGE()) {
@@ -3088,6 +3089,7 @@ static zend_always_inline zend_result _zend_update_type_info(
 				UPDATE_SSA_TYPE(tmp, ssa_op->result_def);
 			}
 			break;
+		case ZEND_ASSIGN_READONLY:
 		case ZEND_ASSIGN:
 			if (ssa_op->op2_def >= 0) {
 				tmp = t2;
@@ -4933,6 +4935,7 @@ ZEND_API bool zend_may_throw_ex(const zend_op *opline, const zend_ssa_op *ssa_op
 					return 1;
 				case ZEND_ISSET_ISEMPTY_DIM_OBJ:
 				case ZEND_ISSET_ISEMPTY_PROP_OBJ:
+				case ZEND_ASSIGN_READONLY:
 				case ZEND_ASSIGN:
 				case ZEND_ASSIGN_DIM:
 				case ZEND_ASSIGN_REF:
@@ -4997,6 +5000,7 @@ ZEND_API bool zend_may_throw_ex(const zend_op *opline, const zend_ssa_op *ssa_op
 		if ((t2 & MAY_BE_RC1)
 		 && (t2 & (MAY_BE_OBJECT|MAY_BE_RESOURCE|MAY_BE_ARRAY_OF_OBJECT|MAY_BE_ARRAY_OF_RESOURCE|MAY_BE_ARRAY_OF_ARRAY))) {
 			switch (opline->opcode) {
+				case ZEND_ASSIGN_READONLY:
 				case ZEND_ASSIGN:
 				case ZEND_FE_FETCH_R:
 				case ZEND_FE_FETCH_RW:
@@ -5175,6 +5179,7 @@ ZEND_API bool zend_may_throw_ex(const zend_op *opline, const zend_ssa_op *ssa_op
 					(t2 & (MAY_BE_STRING|MAY_BE_ARRAY|MAY_BE_OBJECT|MAY_BE_RESOURCE));
 			}
 			return 1;
+		case ZEND_ASSIGN_READONLY:
 		case ZEND_ASSIGN:
 			if (t1 & MAY_BE_REF) {
 				return 1;

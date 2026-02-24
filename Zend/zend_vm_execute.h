@@ -5584,6 +5584,16 @@ static ZEND_VM_COLD ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_
 
 	SAVE_OPLINE();
 
+	if (IS_CONST == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
+
 	if (IS_CONST == IS_VAR || IS_CONST == IS_CV) {
 		array_ref = array_ptr = zend_get_bad_ptr();
 		if (Z_ISREF_P(array_ref)) {
@@ -10905,6 +10915,22 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_READONLY_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
+
+			}
+			if (IS_CONST != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -17615,6 +17641,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_FE_RESET_RW_S
 
 	SAVE_OPLINE();
 
+	if (IS_TMP_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
+
 	if (IS_TMP_VAR == IS_VAR || IS_TMP_VAR == IS_CV) {
 		array_ref = array_ptr = zend_get_bad_ptr();
 		if (Z_ISREF_P(array_ref)) {
@@ -21351,6 +21387,21 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_READONLY_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			}
+			if (IS_TMP_VAR != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -23177,6 +23228,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -23194,6 +23255,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
@@ -23247,6 +23318,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -23264,6 +23345,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
@@ -23315,6 +23406,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
 		fast_long_increment_function(var_ptr);
@@ -23362,6 +23463,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
@@ -23494,6 +23605,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_FE_RESET_RW_S
 	zval *array_ptr, *array_ref;
 
 	SAVE_OPLINE();
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
 
 	if (IS_VAR == IS_VAR || IS_VAR == IS_CV) {
 		array_ref = array_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
@@ -24049,6 +24170,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_OP_SPE
 	SAVE_OPLINE();
 	value = RT_CONSTANT(opline, opline->op2);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -24859,6 +24991,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -25017,6 +25158,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -25170,6 +25320,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -25327,6 +25486,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -25356,6 +25526,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -25369,6 +25550,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -25755,6 +26038,18 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -25792,6 +26087,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -26764,6 +27072,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_OP_SPE
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -27564,6 +27882,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -27721,6 +28048,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -27873,6 +28209,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -28029,6 +28374,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -28058,6 +28413,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -28071,6 +28436,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -28685,6 +29148,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_YIELD_SPEC_VA
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SPEC_VAR_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -28695,6 +29256,28 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SP
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_ptr_var(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_VAR == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -28894,6 +29477,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -29052,6 +29644,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -29205,6 +29806,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -29790,6 +30400,18 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -29827,6 +30449,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -29893,6 +30528,19 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -30581,6 +31229,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_OP_SPE
 	SAVE_OPLINE();
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -31391,6 +32050,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -31549,6 +32217,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -31702,6 +32379,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -31859,6 +32545,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -31888,6 +32585,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -31907,6 +32615,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_V
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SPEC_VAR_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -31917,6 +32727,30 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SP
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_cv_BP_VAR_W(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+
+
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+
+
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_VAR == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -39349,6 +40183,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -39366,6 +40210,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
@@ -39419,6 +40273,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -39436,6 +40300,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
@@ -39487,6 +40361,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
 		fast_long_increment_function(var_ptr);
@@ -39534,6 +40418,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_P
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
@@ -40290,6 +41184,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_FE_RESET_RW_S
 	zval *array_ptr, *array_ref;
 
 	SAVE_OPLINE();
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
 
 	if (IS_CV == IS_VAR || IS_CV == IS_CV) {
 		array_ref = array_ptr = _get_zval_ptr_cv_BP_VAR_R(opline->op1.var EXECUTE_DATA_CC);
@@ -41808,6 +42712,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_OP_SPE
 	value = RT_CONSTANT(opline, opline->op2);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -42964,6 +43879,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -43123,6 +44047,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -43277,6 +44210,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -43435,6 +44377,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -43465,6 +44418,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -43478,6 +44442,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -43920,6 +44986,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -43958,6 +45037,20 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -44662,6 +45755,14 @@ check_indirect:
 			value = Z_INDIRECT_P(value);
 			if (UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
 				ZVAL_NULL(value);
+			}
+
+			if (Z_TYPE_P(value) != IS_REFERENCE
+			    && (Z_EXTRA_P(value) & Z_EXTRA_USER_READONLY_VAR)) {
+				SAVE_OPLINE();
+				zend_throw_error(NULL, "Cannot use global with readonly variable \"%s\"",
+					ZSTR_VAL(varname));
+				HANDLE_EXCEPTION();
 			}
 		}
 	}
@@ -45645,6 +46746,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_OP_SPE
 	SAVE_OPLINE();
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -46784,6 +47895,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -46942,6 +48062,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -47095,6 +48224,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -47252,6 +48390,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -47282,6 +48430,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -47295,6 +48453,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -48230,6 +49486,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_YIELD_SPEC_CV
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SPEC_CV_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -48240,6 +49594,30 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SP
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_ptr_var(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+
+
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+
+
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_CV == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -48484,6 +49862,22 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_READONLY_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
+
+			}
+			if (IS_CV != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -48624,6 +50018,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -48784,6 +50187,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -48938,6 +50350,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -49221,6 +50642,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_REF_SPEC
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -49259,6 +50693,20 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_SEND_VAR_EX_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -49326,6 +50774,20 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_S
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -49509,11 +50971,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_UNSET_CV_SPEC
 		zend_refcounted *garbage = Z_COUNTED_P(var);
 
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 		SAVE_OPLINE();
 		GC_DTOR(garbage);
 		ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 	} else {
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 	}
 	ZEND_VM_NEXT_OPCODE();
 }
@@ -50750,6 +52214,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_OP_SPE
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -51901,6 +53376,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -52060,6 +53544,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -52214,6 +53707,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_DIM_SP
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -52372,6 +53874,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -52402,6 +53915,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -52422,6 +53946,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_SPEC_C
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SPEC_CV_CV_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -52432,6 +54058,32 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_FUNC_CCONV ZEND_ASSIGN_REF_SP
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_cv_BP_VAR_W(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+
+
+
+
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+
+
+
+
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_CV == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -58187,6 +59839,16 @@ static ZEND_VM_COLD ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_FE_RE
 	zval *array_ptr, *array_ref;
 
 	SAVE_OPLINE();
+
+	if (IS_CONST == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
 
 	if (IS_CONST == IS_VAR || IS_CONST == IS_CV) {
 		array_ref = array_ptr = zend_get_bad_ptr();
@@ -70117,6 +71779,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_FE_RESET_RW_SPEC_T
 
 	SAVE_OPLINE();
 
+	if (IS_TMP_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
+
 	if (IS_TMP_VAR == IS_VAR || IS_TMP_VAR == IS_CV) {
 		array_ref = array_ptr = zend_get_bad_ptr();
 		if (Z_ISREF_P(array_ref)) {
@@ -75579,6 +77251,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -75596,6 +77278,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
@@ -75649,6 +77341,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -75666,6 +77368,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
@@ -75717,6 +77429,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_I
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
 		fast_long_increment_function(var_ptr);
@@ -75764,6 +77486,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_D
 	zval *var_ptr;
 
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
@@ -75896,6 +77628,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_FE_RESET_RW_SPEC_V
 	zval *array_ptr, *array_ref;
 
 	SAVE_OPLINE();
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
 
 	if (IS_VAR == IS_VAR || IS_VAR == IS_CV) {
 		array_ref = array_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
@@ -76451,6 +78193,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_VAR
 	SAVE_OPLINE();
 	value = RT_CONSTANT(opline, opline->op2);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -77261,6 +79014,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -77419,6 +79181,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -77572,6 +79343,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -77729,6 +79509,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CO
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -77758,6 +79549,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CO
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -77771,6 +79573,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CO
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -78157,6 +80061,18 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_VAR_
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -78194,6 +80110,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -79166,6 +81095,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_VAR
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -79966,6 +81905,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -80123,6 +82071,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -80275,6 +82232,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -80431,6 +82397,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_TM
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -80460,6 +82436,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_TM
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -80473,6 +82459,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_TM
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
 	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
 
@@ -81087,6 +83171,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_YIELD_SPEC_VAR_TMP
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_VAR_VAR_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -81097,6 +83279,28 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_VA
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_ptr_var(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_VAR == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -81296,6 +83500,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -81454,6 +83667,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -81607,6 +83829,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -82192,6 +84423,18 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_VAR_
 	}
 
 	varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -82229,6 +84472,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -82295,6 +84551,19 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+			zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -82983,6 +85252,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_VAR
 	SAVE_OPLINE();
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -83793,6 +86073,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -83951,6 +86240,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -84104,6 +86402,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_VA
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -84261,6 +86568,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CV
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -84290,6 +86608,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CV
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -84309,6 +86638,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_VAR_CV
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+	zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_VAR_CV_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -84319,6 +86750,30 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_VA
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_cv_BP_VAR_W(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = _get_zval_ptr_ptr_var(opline->op1.var EXECUTE_DATA_CC);
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+
+
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+
+
+		zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_VAR == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -91751,6 +94206,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -91768,6 +94233,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_IN
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_increment_function(var_ptr);
@@ -91821,6 +94296,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
 		if (UNEXPECTED(0)) {
@@ -91838,6 +94323,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_PRE_DE
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		fast_long_decrement_function(var_ptr);
@@ -91889,6 +94384,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_I
 
 	var_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
 		fast_long_increment_function(var_ptr);
@@ -91936,6 +94441,16 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_POST_D
 	zval *var_ptr;
 
 	var_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		SAVE_OPLINE();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(var_ptr) == IS_LONG)) {
 		ZVAL_LONG(EX_VAR(opline->result.var), Z_LVAL_P(var_ptr));
@@ -92692,6 +95207,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_FE_RESET_RW_SPEC_C
 	zval *array_ptr, *array_ref;
 
 	SAVE_OPLINE();
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
+		zval *cv = EX_VAR(opline->op1.var);
+		if (Z_TYPE_P(cv) != IS_UNDEF) {
+			zend_throw_error(NULL, "Cannot iterate over readonly variable by reference");
+			HANDLE_EXCEPTION();
+		}
+	}
 
 	if (IS_CV == IS_VAR || IS_CV == IS_CV) {
 		array_ref = array_ptr = _get_zval_ptr_cv_BP_VAR_R(opline->op1.var EXECUTE_DATA_CC);
@@ -94210,6 +96735,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_CV_
 	value = RT_CONSTANT(opline, opline->op2);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -95366,6 +97902,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -95525,6 +98070,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -95679,6 +98233,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -95837,6 +98400,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CON
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -95867,6 +98441,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CON
 	value = RT_CONSTANT(opline, opline->op2);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -95880,6 +98465,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CON
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = RT_CONSTANT(opline, opline->op2);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CONST, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -96322,6 +99009,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_CV_C
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -96360,6 +99060,20 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_C
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -97064,6 +99778,14 @@ check_indirect:
 			value = Z_INDIRECT_P(value);
 			if (UNEXPECTED(Z_TYPE_P(value) == IS_UNDEF)) {
 				ZVAL_NULL(value);
+			}
+
+			if (Z_TYPE_P(value) != IS_REFERENCE
+			    && (Z_EXTRA_P(value) & Z_EXTRA_USER_READONLY_VAR)) {
+				SAVE_OPLINE();
+				zend_throw_error(NULL, "Cannot use global with readonly variable \"%s\"",
+					ZSTR_VAL(varname));
+				HANDLE_EXCEPTION();
 			}
 		}
 	}
@@ -98047,6 +100769,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_CV_
 	SAVE_OPLINE();
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
@@ -99186,6 +101918,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -99344,6 +102085,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -99497,6 +102247,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -99654,6 +102413,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_TMP
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -99684,6 +102453,16 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_TMP
 	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -99697,6 +102476,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_TMP
 	} else {
 		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
 	}
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_tmp(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
 
 
 	/* zend_assign_to_variable() always takes care of op2, never free it! */
@@ -100632,6 +103509,104 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_YIELD_SPEC_CV_TMP_
 	ZEND_VM_RETURN();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_var(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_VAR, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_CV_VAR_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -100642,6 +103617,30 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_CV
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_ptr_var(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (IS_VAR == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+
+
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		zval_ptr_dtor_nogc(EX_VAR(opline->op2.var));
+
+
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_CV == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -100925,6 +103924,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -101084,6 +104092,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -101238,6 +104255,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -101521,6 +104547,19 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_REF_SPEC_CV_U
 	}
 
 	varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(varptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		ZVAL_UNDEF(arg);
+		zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+		HANDLE_EXCEPTION();
+	}
+
 	if (Z_ISREF_P(varptr)) {
 		Z_ADDREF_P(varptr);
 	} else {
@@ -101559,6 +104598,20 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_VAR_EX_SPEC_C
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -101626,6 +104679,20 @@ static ZEND_VM_HOT ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_SEND_V
 	} else if (ARG_SHOULD_BE_SENT_BY_REF(EX(call)->func, arg_num)) {
 send_var_by_ref:
 		varptr = _get_zval_ptr_cv_BP_VAR_W(opline->op1.var EXECUTE_DATA_CC);
+
+		if ((opline->op1_type == IS_CV) &&
+		    EX(func)->op_array.readonly_var_flags &&
+		    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+		    Z_TYPE_P(varptr) != IS_UNDEF &&
+		    (Z_EXTRA_P(varptr) & Z_EXTRA_USER_READONLY_VAR)) {
+			ZVAL_UNDEF(arg);
+			SAVE_OPLINE();
+			zend_throw_error(NULL, "Cannot pass readonly variable by reference");
+
+
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_ISREF_P(varptr)) {
 			Z_ADDREF_P(varptr);
 		} else {
@@ -101809,11 +104876,13 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_UNSET_CV_SPEC_CV_U
 		zend_refcounted *garbage = Z_COUNTED_P(var);
 
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 		SAVE_OPLINE();
 		GC_DTOR(garbage);
 		ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 	} else {
 		ZVAL_UNDEF(var);
+		Z_EXTRA_P(var) = 0; /* Reset Z_EXTRA including const flag when unsetting */
 	}
 	ZEND_VM_NEXT_OPCODE();
 }
@@ -103050,6 +106119,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_OP_SPEC_CV_
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	var_ptr = _get_zval_ptr_cv_BP_VAR_RW(opline->op1.var EXECUTE_DATA_CC);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(var_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(var_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	do {
 		if (UNEXPECTED(Z_TYPE_P(var_ptr) == IS_REFERENCE)) {
 			zend_reference *ref = Z_REF_P(var_ptr);
@@ -104201,6 +107281,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -104360,6 +107449,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
 		SEPARATE_ARRAY(object_ptr);
@@ -104514,6 +107612,15 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_DIM_SPEC_CV
 
 	SAVE_OPLINE();
 	orig_object_ptr = object_ptr = EX_VAR(opline->op1.var);
+
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(object_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(object_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
 
 	if (EXPECTED(Z_TYPE_P(object_ptr) == IS_ARRAY)) {
 try_assign_dim_array:
@@ -104672,6 +107779,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CV_
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(0)) {
 		zend_refcounted *garbage = NULL;
 
@@ -104702,6 +107820,17 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CV_
 	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
 
+	if ((opline->op1_type == IS_CV) &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
 	if (0 || UNEXPECTED(1)) {
 		zend_refcounted *garbage = NULL;
 
@@ -104722,6 +107851,108 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_SPEC_CV_CV_
 	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
 }
 
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(0)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(0)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
+static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
+{
+	USE_OPLINE
+	zval *value;
+	zval *variable_ptr;
+
+	SAVE_OPLINE();
+	value = _get_zval_ptr_cv_BP_VAR_R(opline->op2.var EXECUTE_DATA_CC);
+	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (Z_TYPE_P(variable_ptr) == IS_REFERENCE) {
+
+
+		UNDEF_RESULT();
+		zend_throw_error(NULL, "Cannot declare reference variable as readonly.");
+		HANDLE_EXCEPTION();
+	}
+
+	if (0 || UNEXPECTED(1)) {
+		zend_refcounted *garbage = NULL;
+
+		value = zend_assign_to_variable_ex(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES(), &garbage);
+		if (UNEXPECTED(1)) {
+			ZVAL_COPY(EX_VAR(opline->result.var), value);
+		}
+		if (garbage) {
+			GC_DTOR_NO_REF(garbage);
+		}
+	} else {
+		value = zend_assign_to_variable(variable_ptr, value, IS_CV, EX_USES_STRICT_TYPES());
+	}
+
+	Z_EXTRA_P(variable_ptr) |= Z_EXTRA_USER_READONLY_VAR;
+
+
+	/* zend_assign_to_variable() always takes care of op2, never free it! */
+
+	ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
+}
+
 static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_CV_CV_TAILCALL_HANDLER(ZEND_OPCODE_HANDLER_ARGS)
 {
 	USE_OPLINE
@@ -104732,6 +107963,32 @@ static ZEND_OPCODE_HANDLER_RET ZEND_OPCODE_HANDLER_CCONV ZEND_ASSIGN_REF_SPEC_CV
 	SAVE_OPLINE();
 	value_ptr = _get_zval_ptr_cv_BP_VAR_W(opline->op2.var EXECUTE_DATA_CC);
 	variable_ptr = EX_VAR(opline->op1.var);
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op2.var)) &&
+	    Z_TYPE_P(value_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(value_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot take reference of readonly variable.");
+
+
+
+
+		HANDLE_EXCEPTION();
+	}
+
+	if (IS_CV == IS_CV &&
+	    EX(func)->op_array.readonly_var_flags &&
+	    zend_bitset_in(EX(func)->op_array.readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var)) &&
+	    Z_TYPE_P(variable_ptr) != IS_UNDEF &&
+	    (Z_EXTRA_P(variable_ptr) & Z_EXTRA_USER_READONLY_VAR)) {
+		zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+
+
+
+
+		HANDLE_EXCEPTION();
+	}
 
 	if (IS_CV == IS_VAR &&
 	           UNEXPECTED(Z_TYPE_P(EX_VAR(opline->op1.var)) != IS_INDIRECT)) {
@@ -106261,6 +109518,22 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_READONLY_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
+
+			}
+			if (IS_CONST != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -106363,6 +109636,21 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_READONLY_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+				zval_ptr_dtor_nogc(EX_VAR(opline->op1.var));
+			}
+			if (IS_TMP_VAR != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -106465,6 +109753,22 @@ fetch_this:
 	/* GLOBAL or $$name variable may be an INDIRECT pointer to CV */
 	} else if (Z_TYPE_P(retval) == IS_INDIRECT) {
 		retval = Z_INDIRECT_P(retval);
+
+		if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET) &&
+		    Z_TYPE_P(retval) != IS_UNDEF &&
+		    (Z_EXTRA_P(retval) & Z_EXTRA_USER_READONLY_VAR)) {
+			if (!(opline->extended_value & ZEND_FETCH_GLOBAL_LOCK)) {
+
+
+			}
+			if (IS_CV != IS_CONST) {
+				zend_tmp_string_release(tmp_name);
+			}
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			ZVAL_UNDEF(EX_VAR(opline->result.var));
+			HANDLE_EXCEPTION();
+		}
+
 		if (Z_TYPE_P(retval) == IS_UNDEF) {
 			if (UNEXPECTED(zend_string_equals(name, ZSTR_KNOWN(ZEND_STR_THIS)))) {
 				goto fetch_this;
@@ -109110,6 +112414,56 @@ ZEND_API void execute_ex(zend_execute_data *ex)
 			(void*)&&ZEND_INIT_PARENT_PROPERTY_HOOK_CALL_SPEC_CONST_UNUSED_LABEL,
 			(void*)&&ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_LABEL,
 			(void*)&&ZEND_TYPE_ASSERT_SPEC_CONST_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_NULL_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED_LABEL,
+			(void*)&&ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED_LABEL,
 			(void*)&&ZEND_INIT_FCALL_OFFSET_SPEC_CONST_LABEL,
 			(void*)&&ZEND_RECV_NOTYPE_SPEC_LABEL,
 			(void*)&&ZEND_NULL_LABEL,
@@ -113127,6 +116481,16 @@ zend_leave_helper_SPEC_LABEL:
 				ZEND_ASSIGN_SPEC_VAR_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_ASSIGN_SPEC_VAR_CONST_RETVAL_USED)
 				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED)
+				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_OBJ_REF_SPEC_VAR_CONST_OP_DATA_VAR):
 				VM_TRACE(ZEND_ASSIGN_OBJ_REF_SPEC_VAR_CONST_OP_DATA_VAR)
 				ZEND_ASSIGN_OBJ_REF_SPEC_VAR_CONST_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
@@ -113317,6 +116681,16 @@ zend_leave_helper_SPEC_LABEL:
 				ZEND_ASSIGN_SPEC_VAR_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_ASSIGN_SPEC_VAR_TMP_RETVAL_USED)
 				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED)
+				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_OBJ_REF_SPEC_VAR_TMP_OP_DATA_VAR):
 				VM_TRACE(ZEND_ASSIGN_OBJ_REF_SPEC_VAR_TMP_OP_DATA_VAR)
 				ZEND_ASSIGN_OBJ_REF_SPEC_VAR_TMP_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
@@ -113356,6 +116730,16 @@ zend_leave_helper_SPEC_LABEL:
 				VM_TRACE(ZEND_YIELD_SPEC_VAR_TMP)
 				ZEND_YIELD_SPEC_VAR_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_YIELD_SPEC_VAR_TMP)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED)
 				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_REF_SPEC_VAR_VAR):
 				VM_TRACE(ZEND_ASSIGN_REF_SPEC_VAR_VAR)
@@ -113591,6 +116975,16 @@ zend_leave_helper_SPEC_LABEL:
 				VM_TRACE(ZEND_ASSIGN_SPEC_VAR_CV_RETVAL_USED)
 				ZEND_ASSIGN_SPEC_VAR_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_ASSIGN_SPEC_VAR_CV_RETVAL_USED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED)
 				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_REF_SPEC_VAR_CV):
 				VM_TRACE(ZEND_ASSIGN_REF_SPEC_VAR_CV)
@@ -114606,6 +118000,16 @@ zend_leave_helper_SPEC_LABEL:
 				ZEND_ASSIGN_SPEC_CV_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_ASSIGN_SPEC_CV_CONST_RETVAL_USED)
 				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED)
+				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_OBJ_REF_SPEC_CV_CONST_OP_DATA_VAR):
 				VM_TRACE(ZEND_ASSIGN_OBJ_REF_SPEC_CV_CONST_OP_DATA_VAR)
 				ZEND_ASSIGN_OBJ_REF_SPEC_CV_CONST_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
@@ -114906,6 +118310,16 @@ zend_leave_helper_SPEC_LABEL:
 				ZEND_ASSIGN_SPEC_CV_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_ASSIGN_SPEC_CV_TMP_RETVAL_USED)
 				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED)
+				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_OBJ_REF_SPEC_CV_TMP_OP_DATA_VAR):
 				VM_TRACE(ZEND_ASSIGN_OBJ_REF_SPEC_CV_TMP_OP_DATA_VAR)
 				ZEND_ASSIGN_OBJ_REF_SPEC_CV_TMP_OP_DATA_VAR_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
@@ -114965,6 +118379,16 @@ zend_leave_helper_SPEC_LABEL:
 				VM_TRACE(ZEND_YIELD_SPEC_CV_TMP)
 				ZEND_YIELD_SPEC_CV_TMP_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_YIELD_SPEC_CV_TMP)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED)
 				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_REF_SPEC_CV_VAR):
 				VM_TRACE(ZEND_ASSIGN_REF_SPEC_CV_VAR)
@@ -115335,6 +118759,16 @@ zend_leave_helper_SPEC_LABEL:
 				VM_TRACE(ZEND_ASSIGN_SPEC_CV_CV_RETVAL_USED)
 				ZEND_ASSIGN_SPEC_CV_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
 				VM_TRACE_OP_END(ZEND_ASSIGN_SPEC_CV_CV_RETVAL_USED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED)
+				HYBRID_BREAK();
+			HYBRID_CASE(ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED):
+				VM_TRACE(ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED)
+				ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED_HANDLER(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU);
+				VM_TRACE_OP_END(ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED)
 				HYBRID_BREAK();
 			HYBRID_CASE(ZEND_ASSIGN_REF_SPEC_CV_CV):
 				VM_TRACE(ZEND_ASSIGN_REF_SPEC_CV_CV)
@@ -118048,6 +121482,56 @@ void zend_vm_init(void)
 		ZEND_INIT_PARENT_PROPERTY_HOOK_CALL_SPEC_CONST_UNUSED_HANDLER,
 		ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_HANDLER,
 		ZEND_TYPE_ASSERT_SPEC_CONST_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_NULL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED_HANDLER,
 		ZEND_INIT_FCALL_OFFSET_SPEC_CONST_HANDLER,
 		ZEND_RECV_NOTYPE_SPEC_HANDLER,
 		ZEND_NULL_HANDLER,
@@ -121526,6 +125010,56 @@ void zend_vm_init(void)
 		ZEND_INIT_PARENT_PROPERTY_HOOK_CALL_SPEC_CONST_UNUSED_TAILCALL_HANDLER,
 		ZEND_DECLARE_ATTRIBUTED_CONST_SPEC_CONST_CONST_TAILCALL_HANDLER,
 		ZEND_TYPE_ASSERT_SPEC_CONST_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CONST_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_TMP_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_VAR_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_VAR_CV_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CONST_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_TMP_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_VAR_RETVAL_USED_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_NULL_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_UNUSED_TAILCALL_HANDLER,
+		ZEND_ASSIGN_READONLY_SPEC_CV_CV_RETVAL_USED_TAILCALL_HANDLER,
 		ZEND_INIT_FCALL_OFFSET_SPEC_CONST_TAILCALL_HANDLER,
 		ZEND_RECV_NOTYPE_SPEC_TAILCALL_HANDLER,
 		ZEND_NULL_TAILCALL_HANDLER,
@@ -122494,7 +126028,7 @@ void zend_vm_init(void)
 		1255,
 		1256 | SPEC_RULE_OP1,
 		1261 | SPEC_RULE_OP1,
-		3474,
+		3524,
 		1266 | SPEC_RULE_OP1,
 		1271 | SPEC_RULE_OP1,
 		1276 | SPEC_RULE_OP2,
@@ -122528,7 +126062,7 @@ void zend_vm_init(void)
 		1559 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
 		1584 | SPEC_RULE_OP1,
 		1589,
-		3474,
+		3524,
 		1590 | SPEC_RULE_OP1,
 		1595 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
 		1620 | SPEC_RULE_OP1 | SPEC_RULE_OP2,
@@ -122661,50 +126195,50 @@ void zend_vm_init(void)
 		2556,
 		2557,
 		2558,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
-		3474,
+		2559 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_RETVAL,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
+		3524,
 	};
 #if 0
 #elif (ZEND_VM_KIND == ZEND_VM_KIND_HYBRID)
@@ -122881,7 +126415,7 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2567 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2617 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 				if (op->op1_type < op->op2_type) {
 					zend_swap_operands(op);
 				}
@@ -122889,7 +126423,7 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2592 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2642 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 				if (op->op1_type < op->op2_type) {
 					zend_swap_operands(op);
 				}
@@ -122897,7 +126431,7 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2617 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2667 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 				if (op->op1_type < op->op2_type) {
 					zend_swap_operands(op);
 				}
@@ -122908,17 +126442,17 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2642 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 2692 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			} else if (op1_info == MAY_BE_LONG && op2_info == MAY_BE_LONG) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2667 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 2717 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2692 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 2742 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			}
 			break;
 		case ZEND_MUL:
@@ -122929,17 +126463,17 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2717 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2767 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_LONG && op2_info == MAY_BE_LONG) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2742 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2792 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2767 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 2817 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_IDENTICAL:
@@ -122950,16 +126484,16 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2792 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2842 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2867 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2917 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op->op2_type == IS_CONST && (Z_TYPE_P(RT_CONSTANT(op, op->op2)) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(RT_CONSTANT(op, op->op2))) == 0)) {
-				spec = 3092 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 3142 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op->op1_type == IS_CV && (op->op2_type & (IS_CONST|IS_CV)) && !(op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) && !(op2_info & (MAY_BE_UNDEF|MAY_BE_REF))) {
-				spec = 3098 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 3148 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_NOT_IDENTICAL:
@@ -122970,16 +126504,16 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2942 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2992 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3017 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 3067 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op->op2_type == IS_CONST && (Z_TYPE_P(RT_CONSTANT(op, op->op2)) == IS_ARRAY && zend_hash_num_elements(Z_ARR_P(RT_CONSTANT(op, op->op2))) == 0)) {
-				spec = 3095 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 3145 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op->op1_type == IS_CV && (op->op2_type & (IS_CONST|IS_CV)) && !(op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) && !(op2_info & (MAY_BE_UNDEF|MAY_BE_REF))) {
-				spec = 3103 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
+				spec = 3153 | SPEC_RULE_OP2 | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_EQUAL:
@@ -122990,12 +126524,12 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2792 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2842 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2867 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2917 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_NOT_EQUAL:
@@ -123006,12 +126540,12 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 2942 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 2992 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3017 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
+				spec = 3067 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH | SPEC_RULE_COMMUTATIVE;
 			}
 			break;
 		case ZEND_IS_SMALLER:
@@ -123019,12 +126553,12 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3108 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3158 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3183 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3233 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			}
 			break;
 		case ZEND_IS_SMALLER_OR_EQUAL:
@@ -123032,79 +126566,79 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3258 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3308 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			} else if (op1_info == MAY_BE_DOUBLE && op2_info == MAY_BE_DOUBLE) {
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3333 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
+				spec = 3383 | SPEC_RULE_OP1 | SPEC_RULE_OP2 | SPEC_RULE_SMART_BRANCH;
 			}
 			break;
 		case ZEND_QM_ASSIGN:
 			if (op1_info == MAY_BE_LONG) {
-				spec = 3420 | SPEC_RULE_OP1;
+				spec = 3470 | SPEC_RULE_OP1;
 			} else if (op1_info == MAY_BE_DOUBLE) {
-				spec = 3425 | SPEC_RULE_OP1;
+				spec = 3475 | SPEC_RULE_OP1;
 			} else if ((op->op1_type == IS_CONST) ? !Z_REFCOUNTED_P(RT_CONSTANT(op, op->op1)) : (!(op1_info & ((MAY_BE_ANY|MAY_BE_UNDEF)-(MAY_BE_NULL|MAY_BE_FALSE|MAY_BE_TRUE|MAY_BE_LONG|MAY_BE_DOUBLE))))) {
-				spec = 3430 | SPEC_RULE_OP1;
+				spec = 3480 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_PRE_INC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3408 | SPEC_RULE_RETVAL;
+				spec = 3458 | SPEC_RULE_RETVAL;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3410 | SPEC_RULE_RETVAL;
+				spec = 3460 | SPEC_RULE_RETVAL;
 			}
 			break;
 		case ZEND_PRE_DEC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3412 | SPEC_RULE_RETVAL;
+				spec = 3462 | SPEC_RULE_RETVAL;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3414 | SPEC_RULE_RETVAL;
+				spec = 3464 | SPEC_RULE_RETVAL;
 			}
 			break;
 		case ZEND_POST_INC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3416;
+				spec = 3466;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3417;
+				spec = 3467;
 			}
 			break;
 		case ZEND_POST_DEC:
 			if (res_info == MAY_BE_LONG && op1_info == MAY_BE_LONG) {
-				spec = 3418;
+				spec = 3468;
 			} else if (op1_info == MAY_BE_LONG) {
-				spec = 3419;
+				spec = 3469;
 			}
 			break;
 		case ZEND_JMP:
 			if (OP_JMP_ADDR(op, op->op1) > op) {
-				spec = 2566;
+				spec = 2616;
 			}
 			break;
 		case ZEND_INIT_FCALL:
 			if (Z_EXTRA_P(RT_CONSTANT(op, op->op2)) != 0) {
-				spec = 2559;
+				spec = 2609;
 			}
 			break;
 		case ZEND_RECV:
 			if (op->op2.num == MAY_BE_ANY) {
-				spec = 2560;
+				spec = 2610;
 			}
 			break;
 		case ZEND_SEND_VAL:
 			if (op->op1_type == IS_CONST && op->op2_type == IS_UNUSED && !Z_REFCOUNTED_P(RT_CONSTANT(op, op->op1))) {
-				spec = 3470;
+				spec = 3520;
 			}
 			break;
 		case ZEND_SEND_VAR_EX:
 			if (op->op2_type == IS_UNUSED && op->op2.num <= MAX_ARG_FLAG_NUM && (op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) == 0) {
-				spec = 3465 | SPEC_RULE_OP1;
+				spec = 3515 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_FE_FETCH_R:
 			if (op->op2_type == IS_CV && (op1_info & (MAY_BE_ANY|MAY_BE_REF)) == MAY_BE_ARRAY) {
-				spec = 3472 | SPEC_RULE_RETVAL;
+				spec = 3522 | SPEC_RULE_RETVAL;
 			}
 			break;
 		case ZEND_FETCH_DIM_R:
@@ -123112,22 +126646,22 @@ ZEND_API void ZEND_FASTCALL zend_vm_set_opcode_handler_ex(zend_op* op, uint32_t 
 				if (op->op1_type == IS_CONST && op->op2_type == IS_CONST) {
 					break;
 				}
-				spec = 3435 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
+				spec = 3485 | SPEC_RULE_OP1 | SPEC_RULE_OP2;
 			}
 			break;
 		case ZEND_SEND_VAL_EX:
 			if (op->op2_type == IS_UNUSED && op->op2.num <= MAX_ARG_FLAG_NUM && op->op1_type == IS_CONST && !Z_REFCOUNTED_P(RT_CONSTANT(op, op->op1))) {
-				spec = 3471;
+				spec = 3521;
 			}
 			break;
 		case ZEND_SEND_VAR:
 			if (op->op2_type == IS_UNUSED && (op1_info & (MAY_BE_UNDEF|MAY_BE_REF)) == 0) {
-				spec = 3460 | SPEC_RULE_OP1;
+				spec = 3510 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_COUNT:
 			if ((op1_info & (MAY_BE_ANY|MAY_BE_UNDEF|MAY_BE_REF)) == MAY_BE_ARRAY) {
-				spec = 2561 | SPEC_RULE_OP1;
+				spec = 2611 | SPEC_RULE_OP1;
 			}
 			break;
 		case ZEND_BW_OR:

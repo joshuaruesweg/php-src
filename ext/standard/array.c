@@ -1716,6 +1716,18 @@ static zend_string* php_prefix_varname(const zend_string *prefix, const zend_str
 	return zend_string_concat3(ZSTR_VAL(prefix), ZSTR_LEN(prefix), ZEND_STRL("_"), ZSTR_VAL(var_name), ZSTR_LEN(var_name));
 }
 
+static inline bool php_extract_is_readonly_in(zend_array *symbol_table, zend_string *name) {
+	zval *var = zend_hash_find(symbol_table, name);
+	if (var && Z_TYPE_P(var) == IS_INDIRECT) {
+		var = Z_INDIRECT_P(var);
+		if (Z_TYPE_P(var) != IS_UNDEF
+			&& (Z_EXTRA_P(var) & Z_EXTRA_USER_READONLY_VAR)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static zend_long php_extract_ref_if_exists(const zend_array *arr, const zend_array *symbol_table) /* {{{ */
 {
 	zend_long count = 0;
@@ -1725,6 +1737,22 @@ static zend_long php_extract_ref_if_exists(const zend_array *arr, const zend_arr
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var && Z_TYPE_P(orig_var) == IS_INDIRECT) {
+			orig_var = Z_INDIRECT_P(orig_var);
+			if (Z_TYPE_P(orig_var) != IS_UNDEF
+				&& (Z_EXTRA_P(orig_var) & Z_EXTRA_USER_READONLY_VAR)) {
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -1771,6 +1799,22 @@ static zend_long php_extract_if_exists(const zend_array *arr, const zend_array *
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var && Z_TYPE_P(orig_var) == IS_INDIRECT) {
+			orig_var = Z_INDIRECT_P(orig_var);
+			if (Z_TYPE_P(orig_var) != IS_UNDEF
+				&& (Z_EXTRA_P(orig_var) & Z_EXTRA_USER_READONLY_VAR)) {
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -1815,6 +1859,22 @@ static zend_long php_extract_ref_overwrite(const zend_array *arr, zend_array *sy
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var && Z_TYPE_P(orig_var) == IS_INDIRECT) {
+			orig_var = Z_INDIRECT_P(orig_var);
+			if (Z_TYPE_P(orig_var) != IS_UNDEF
+				&& (Z_EXTRA_P(orig_var) & Z_EXTRA_USER_READONLY_VAR)) {
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -1867,6 +1927,22 @@ static zend_long php_extract_overwrite(const zend_array *arr, zend_array *symbol
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var && Z_TYPE_P(orig_var) == IS_INDIRECT) {
+			orig_var = Z_INDIRECT_P(orig_var);
+			if (Z_TYPE_P(orig_var) != IS_UNDEF
+				&& (Z_EXTRA_P(orig_var) & Z_EXTRA_USER_READONLY_VAR)) {
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -1912,6 +1988,30 @@ static zend_long php_extract_ref_prefix_if_exists(const zend_array *arr, zend_ar
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var) {
+			if (Z_TYPE_P(orig_var) == IS_INDIRECT) {
+				orig_var = Z_INDIRECT_P(orig_var);
+				if (Z_TYPE_P(orig_var) == IS_UNDEF) {
+					continue;
+				}
+			}
+			zend_string *final_name = php_prefix_varname(prefix, var_name);
+			if (php_valid_var_name(final_name)
+				&& php_extract_is_readonly_in(symbol_table, final_name)) {
+				zend_string_release_ex(final_name, false);
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+			zend_string_release_ex(final_name, false);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -1969,6 +2069,30 @@ static zend_long php_extract_prefix_if_exists(const zend_array *arr, zend_array 
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var) {
+			if (Z_TYPE_P(orig_var) == IS_INDIRECT) {
+				orig_var = Z_INDIRECT_P(orig_var);
+				if (Z_TYPE_P(orig_var) == IS_UNDEF) {
+					continue;
+				}
+			}
+			zend_string *final_name = php_prefix_varname(prefix, var_name);
+			if (php_valid_var_name(final_name)
+				&& php_extract_is_readonly_in(symbol_table, final_name)) {
+				zend_string_release_ex(final_name, false);
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+			zend_string_release_ex(final_name, false);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -2021,6 +2145,39 @@ static zend_long php_extract_ref_prefix_same(const zend_array *arr, zend_array *
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name || ZSTR_LEN(var_name) == 0) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var) {
+			if (Z_TYPE_P(orig_var) == IS_INDIRECT) {
+				orig_var = Z_INDIRECT_P(orig_var);
+				if (Z_TYPE_P(orig_var) == IS_UNDEF) {
+					continue;
+				}
+			}
+			zend_string *final_name = php_prefix_varname(prefix, var_name);
+			if (php_valid_var_name(final_name)
+				&& php_extract_is_readonly_in(symbol_table, final_name)) {
+				zend_string_release_ex(final_name, false);
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+			zend_string_release_ex(final_name, false);
+		} else if (zend_string_equals(var_name, ZSTR_KNOWN(ZEND_STR_THIS))) {
+			zend_string *final_name = php_prefix_varname(prefix, var_name);
+			if (php_valid_var_name(final_name)
+				&& php_extract_is_readonly_in(symbol_table, final_name)) {
+				zend_string_release_ex(final_name, false);
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+			zend_string_release_ex(final_name, false);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -2096,6 +2253,39 @@ static zend_long php_extract_prefix_same(const zend_array *arr, zend_array *symb
 	if (HT_IS_PACKED(arr)) {
 		return 0;
 	}
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
+		if (!var_name || ZSTR_LEN(var_name) == 0) {
+			continue;
+		}
+		orig_var = zend_hash_find_known_hash(symbol_table, var_name);
+		if (orig_var) {
+			if (Z_TYPE_P(orig_var) == IS_INDIRECT) {
+				orig_var = Z_INDIRECT_P(orig_var);
+				if (Z_TYPE_P(orig_var) == IS_UNDEF) {
+					continue;
+				}
+			}
+			zend_string *final_name = php_prefix_varname(prefix, var_name);
+			if (php_valid_var_name(final_name)
+				&& php_extract_is_readonly_in(symbol_table, final_name)) {
+				zend_string_release_ex(final_name, false);
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+			zend_string_release_ex(final_name, false);
+		} else if (zend_string_equals(var_name, ZSTR_KNOWN(ZEND_STR_THIS))) {
+			zend_string *final_name = php_prefix_varname(prefix, var_name);
+			if (php_valid_var_name(final_name)
+				&& php_extract_is_readonly_in(symbol_table, final_name)) {
+				zend_string_release_ex(final_name, false);
+				zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+				return -1;
+			}
+			zend_string_release_ex(final_name, false);
+		}
+	} ZEND_HASH_FOREACH_END();
+
 	ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(arr, var_name, entry) {
 		if (!var_name) {
 			continue;
@@ -2173,6 +2363,27 @@ static zend_long php_extract_ref_prefix_all(const zend_array *arr, zend_array *s
 			final_name = php_prefix_varname(prefix, str);
 			zend_string_release_ex(str, false);
 		}
+		if (php_valid_var_name(final_name)
+			&& php_extract_is_readonly_in(symbol_table, final_name)) {
+			zend_string_release_ex(final_name, false);
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			return -1;
+		}
+		zend_string_release_ex(final_name, false);
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_FOREACH_KEY_VAL(arr, num_key, var_name, entry) {
+		zend_string *final_name;
+		if (var_name) {
+			if (ZSTR_LEN(var_name) == 0) {
+				continue;
+			}
+			final_name = php_prefix_varname(prefix, var_name);
+		} else {
+			zend_string *str = zend_long_to_str(num_key);
+			final_name = php_prefix_varname(prefix, str);
+			zend_string_release_ex(str, false);
+		}
 		if (php_valid_var_name(final_name)) {
 			/* Prefixed varname cannot be equal to "this" due to underscore between prefix and name */
 			ZEND_ASSERT(!zend_string_equals(final_name, ZSTR_KNOWN(ZEND_STR_THIS)));
@@ -2219,6 +2430,27 @@ static zend_long php_extract_prefix_all(const zend_array *arr, zend_array *symbo
 			final_name = php_prefix_varname(prefix, str);
 			zend_string_release_ex(str, false);
 		}
+		if (php_valid_var_name(final_name)
+			&& php_extract_is_readonly_in(symbol_table, final_name)) {
+			zend_string_release_ex(final_name, false);
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			return -1;
+		}
+		zend_string_release_ex(final_name, false);
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_FOREACH_KEY_VAL(arr, num_key, var_name, entry) {
+		zend_string *final_name;
+		if (var_name) {
+			if (ZSTR_LEN(var_name) == 0) {
+				continue;
+			}
+			final_name = php_prefix_varname(prefix, var_name);
+		} else {
+			zend_string *str = zend_long_to_str(num_key);
+			final_name = php_prefix_varname(prefix, str);
+			zend_string_release_ex(str, false);
+		}
 		if (php_valid_var_name(final_name)) {
 			/* Prefixed varname cannot be equal to "this" due to underscore between prefix and name */
 			ZEND_ASSERT(!zend_string_equals(final_name, ZSTR_KNOWN(ZEND_STR_THIS)));
@@ -2252,6 +2484,35 @@ static zend_long php_extract_ref_prefix_invalid(const zend_array *arr, zend_arra
 	zend_string *var_name;
 	zend_ulong num_key;
 	zval *entry, *orig_var;
+
+	ZEND_HASH_FOREACH_KEY_VAL(arr, num_key, var_name, entry) {
+		zend_string *final_name;
+		if (var_name) {
+			if (!php_valid_var_name(var_name) || zend_string_equals(var_name, ZSTR_KNOWN(ZEND_STR_THIS))) {
+				final_name = php_prefix_varname(prefix, var_name);
+				if (!php_valid_var_name(final_name)) {
+					zend_string_release_ex(final_name, false);
+					continue;
+				}
+			} else {
+				final_name = zend_string_copy(var_name);
+			}
+		} else {
+			zend_string *str = zend_long_to_str(num_key);
+			final_name = php_prefix_varname(prefix, str);
+			zend_string_release_ex(str, false);
+			if (!php_valid_var_name(final_name)) {
+				zend_string_release_ex(final_name, false);
+				continue;
+			}
+		}
+		if (php_extract_is_readonly_in(symbol_table, final_name)) {
+			zend_string_release_ex(final_name, false);
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			return -1;
+		}
+		zend_string_release_ex(final_name, false);
+	} ZEND_HASH_FOREACH_END();
 
 	ZEND_HASH_FOREACH_KEY_VAL(arr, num_key, var_name, entry) {
 		zend_string *final_name;
@@ -2308,6 +2569,35 @@ static zend_long php_extract_prefix_invalid(const zend_array *arr, zend_array *s
 	zend_string *var_name;
 	zend_ulong num_key;
 	zval *entry, *orig_var;
+
+	ZEND_HASH_FOREACH_KEY_VAL(arr, num_key, var_name, entry) {
+		zend_string *final_name;
+		if (var_name) {
+			if (!php_valid_var_name(var_name) || zend_string_equals(var_name, ZSTR_KNOWN(ZEND_STR_THIS))) {
+				final_name = php_prefix_varname(prefix, var_name);
+				if (!php_valid_var_name(final_name)) {
+					zend_string_release_ex(final_name, false);
+					continue;
+				}
+			} else {
+				final_name = zend_string_copy(var_name);
+			}
+		} else {
+			zend_string *str = zend_long_to_str(num_key);
+			final_name = php_prefix_varname(prefix, str);
+			zend_string_release_ex(str, 0);
+			if (!php_valid_var_name(final_name)) {
+				zend_string_release_ex(final_name, false);
+				continue;
+			}
+		}
+		if (php_extract_is_readonly_in(symbol_table, final_name)) {
+			zend_string_release_ex(final_name, false);
+			zend_throw_error(NULL, "Cannot re-assign readonly variable.");
+			return -1;
+		}
+		zend_string_release_ex(final_name, false);
+	} ZEND_HASH_FOREACH_END();
 
 	ZEND_HASH_FOREACH_KEY_VAL(arr, num_key, var_name, entry) {
 		zend_string *final_name;

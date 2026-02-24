@@ -2032,6 +2032,7 @@ static zend_ssa *zend_jit_trace_build_tssa(zend_jit_trace_rec *trace_buffer, uin
 					}
 					ADD_OP1_TRACE_GUARD();
 					break;
+				case ZEND_ASSIGN_READONLY:
 				case ZEND_ASSIGN:
 					if (opline->op1_type != IS_CV) {
 						break;
@@ -5103,8 +5104,14 @@ static zend_vm_opcode_handler_t zend_jit_trace(zend_jit_trace_rec *trace_buffer,
 							SET_STACK_TYPE(stack, EX_VAR_TO_NUM(opline->op1.var), IS_ARRAY, 1);
 						}
 						goto done;
+					case ZEND_ASSIGN_READONLY:
+						break;
 					case ZEND_ASSIGN:
 						if (opline->op1_type != IS_CV) {
+							break;
+						}
+						if (op_array->readonly_var_flags
+						 && zend_bitset_in(op_array->readonly_var_flags, EX_VAR_TO_NUM(opline->op1.var))) {
 							break;
 						}
 						op2_addr = OP2_REG_ADDR();
