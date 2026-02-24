@@ -11,6 +11,18 @@ try {
 } catch (Throwable $e) {
     echo $e::class, ": ", $e->getMessage(), PHP_EOL;
 }
+
+try {
+    $arr[] = 999;
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
+
+try {
+    array_push($arr, 999);
+} catch (Throwable $e) {
+    echo $e::class, ": ", $e->getMessage(), PHP_EOL;
+}
 ?>
 --EXPECT--
 Original array: Array
@@ -20,3 +32,5 @@ Original array: Array
     [2] => 3
 )
 Error: Cannot re-assign readonly variable.
+Error: Cannot re-assign readonly variable.
+Error: Cannot pass readonly variable by reference
